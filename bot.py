@@ -230,7 +230,7 @@ async def send_girl_ticket(ctx):
         color=discord.Color.from_rgb(255, 105, 180)
     )
 
-    girl_banner_path = r"C:\Users\prime\Desktop\banner_girl.png"
+   girl_banner_path = "banner_girl.png"
 
     if os.path.exists(girl_banner_path):
         file = discord.File(girl_banner_path, filename="banner_girl.png")
@@ -254,7 +254,7 @@ async def send_ticket(ctx):
         color=discord.Color.from_rgb(67, 181, 129)
     )
 
-    banner_path = r"C:\Users\prime\Desktop\banner.png"
+    banner_path = "banner.png"
 
     if os.path.exists(banner_path):
         file = discord.File(banner_path, filename="banner.png")
@@ -263,5 +263,4 @@ async def send_ticket(ctx):
     else:
         await ctx.send(embed=embed, view=TicketMainView())
     
-# Ең соңғы жолды жаңа токенмен жаңартыңыз:
-bot.run("MTU0NjI3MTQ5NzI3MjY5Mjc1Ng.Gjw90V.eCLGzyoT8DEvrvmKTqY0NkzuKCogS71h-aD58Q")
+bot.run(os.getenv("DISCORD_TOKEN"))
