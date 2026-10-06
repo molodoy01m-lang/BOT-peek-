@@ -6,7 +6,7 @@ from discord.ui import View, Select, Button, Modal, TextInput
 from flask import Flask
 from threading import Thread
 
-# Web-server (Render хостингінде 24/7 жұмыс істеу үшін)
+# Web-server (для поддержания работы 24/7 на Render)
 app = Flask('')
 
 @app.route('/')
@@ -37,20 +37,17 @@ MEDIA_BANNER_URL = "https://multibot.pro/api/embeds/images/nfmpvssumgp3km0o"
 # ИДЕНТИФИКАТОРЫ РОЛЕЙ
 # --------------------------------------------------
 
-# 1. ЖАЛПЫ ТИКЕТТЕР:
 STAFF_ROLE_IDS = [
     1557048240329719870,
-    1556691625294696559
+    1557048240329719870
 ]
 
-# 2. ҚЫЗДАР ТИКЕТІ:
 GIRL_STAFF_ROLE_IDS = [
-    1556691625294696559
+    1557048240329719870
 ]
 
-# 3. МЕДИА ТИКЕТІ:
 MEDIA_STAFF_ROLE_IDS = [
-   1556691625294696559
+    1557048240329719870
 ]
 
 # --------------------------------------------------
@@ -281,79 +278,4 @@ class TicketSelectView(View):
                 "**Система поддержки ALASH PROJECT KZ**\n\n"
                 "**Возникли вопросы, проблемы или нужна помощь? Опишите ситуацию**"
             ),
-            color=discord.Color.from_rgb(67, 181, 129)
-        )
-        embed.add_field(name="• Пользователь", value=user.mention, inline=False)
-        embed.add_field(name="• Категория", value=f"{category_selected}", inline=False)
-
-        await ticket_channel.send(
-            content=f"{user.mention} {roles_ping_text}".strip(),
-            embed=embed,
-            view=TicketControlView(ticket_type="general")
-        )
-
-        await send_log(
-            guild=guild,
-            channel_id=TICKET_LOG_CHANNEL_ID,
-            title="📩 Новый общий тикет",
-            description=f"Пользователь {user.mention} открыл тикет {ticket_channel.mention}",
-            color=discord.Color.green(),
-            fields={"Категория": category_selected}
-        )
-
-        await interaction.followup.send(f"Ваш тикет создан: {ticket_channel.mention}", ephemeral=True)
-
-
-class TicketMainView(View):
-    def __init__(self):
-        super().__init__(timeout=None)
-
-    @discord.ui.button(label="Открыть тикет", style=discord.ButtonStyle.primary, custom_id="open_ticket_main_btn_alash")
-    async def open_ticket(self, interaction: discord.Interaction, button: Button):
-        await interaction.response.send_message(
-            "Выберите нужную категорию для открытия тикета:",
-            view=TicketSelectView(),
-            ephemeral=True
-        )
-
-
-# --------------------------------------------------
-# 4. МЕДИА ТИКЕТ
-# --------------------------------------------------
-
-class MediaApplicationModal(Modal, title="Подать заявку на Медиа"):
-    game_nick = TextInput(
-        label="Ваш ник в игре",
-        placeholder="Введите игровой ник...",
-        required=True,
-        max_length=50
-    )
-    tiktok_link = TextInput(
-        label="Ваш тик ток / Канал",
-        placeholder="Ссылка на ваш аккаунт/канал",
-        required=True,
-        max_length=150
-    )
-    steam_id = TextInput(
-        label="Ваш steam ID",
-        placeholder="steam ID можете найти у себя в профиле",
-        style=discord.TextStyle.paragraph,
-        required=True,
-        max_length=100
-    )
-
-    async def on_submit(self, interaction: discord.Interaction):
-        await interaction.response.defer(ephemeral=True)
-
-        guild = interaction.guild
-        user = interaction.user
-        channel_name = f"медиа-{user.name}"
-
-        existing_channel = discord.utils.get(guild.text_channels, name=channel_name)
-        if existing_channel:
-            await interaction.followup.send(f"У вас уже открыт медиа тикет: {existing_channel.mention}", ephemeral=True)
-            return
-
-        overwrites = {
-            guild.default_role: discord.PermissionOverwrite(read_messages=False),
-            user: discord.PermissionOverwrite(read_messages=True, send_messages=
+            color=discord.Color.from_rgb(67, 18
