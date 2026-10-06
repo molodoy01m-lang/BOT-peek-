@@ -263,4 +263,4 @@ async def send_ticket(ctx):
     else:
         await ctx.send(embed=embed, view=TicketMainView())
 
-bot.run("MTU0NjI3MTQ5NzI3MjY5Mjc1Ng.GGxaGs.tyB0pZyWhBamk8EUKDT4-CgP7szx5ZmqiVB8fA")
+bot.run("MTU0NjI3MTQ5NzI3MjY5Mjc1Ng.GJczGP.ItSq2sSpZVqKjHdbbaGWL6mEYEAVEXISsacvcE")
