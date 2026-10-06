@@ -6,7 +6,7 @@ from discord.ui import View, Select, Button, Modal, TextInput
 from flask import Flask
 from threading import Thread
 
-# Web-server (для поддержания работы 24/7 на Render)
+# Web-server (Render-де бот 24/7 істеп тұруы үшін)
 app = Flask('')
 
 @app.route('/')
@@ -381,4 +381,113 @@ class MediaApplicationModal(Modal, title="Подать заявку на Мед�
             color=discord.Color.red()
         )
         embed.add_field(name="• Пользователь", value=user.mention, inline=False)
-        embed.add_field(name="• Ник в игре", value=self.
+        embed.add_field(name="• Ник в игре", value=self.game_nick.value, inline=False)
+        embed.add_field(name="• TikTok / Канал", value=self.tiktok_link.value, inline=False)
+        embed.add_field(name="• Steam ID", value=self.steam_id.value, inline=False)
+        embed.set_thumbnail(url=user.display_avatar.url)
+
+        await ticket_channel.send(
+            content=f"{user.mention} {roles_ping_text}".strip(),
+            embed=embed,
+            view=TicketControlView(ticket_type="media")
+        )
+
+        await send_log(
+            guild=guild,
+            channel_id=MEDIA_LOG_CHANNEL_ID,
+            title="🎬 Новая заявка на Медиа",
+            description=f"Пользователь {user.mention} подал заявку: {ticket_channel.mention}",
+            color=discord.Color.red(),
+            fields={
+                "Ник в игре": self.game_nick.value,
+                "TikTok / Канал": self.tiktok_link.value,
+                "Steam ID": self.steam_id.value
+            }
+        )
+
+        await interaction.followup.send(f"Ваш медиа тикет создан: {ticket_channel.mention}", ephemeral=True)
+
+
+class MediaMainView(View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(
+        label="Подать заявку",
+        style=discord.ButtonStyle.danger,
+        custom_id="open_media_modal_btn_alash"
+    )
+    async def apply_media_button(self, interaction: discord.Interaction, button: Button):
+        await interaction.response.send_modal(MediaApplicationModal())
+
+
+# --------------------------------------------------
+# 5. КОМАНДЫ ДЛЯ ОТПРАВКИ ИНТЕРФЕЙСА
+# --------------------------------------------------
+
+class MyBot(commands.Bot):
+    def __init__(self):
+        super().__init__(command_prefix="!", intents=intents)
+
+    async def setup_hook(self):
+        self.add_view(TicketMainView())
+        self.add_view(GirlTicketMainView())
+        self.add_view(TicketControlView())
+        self.add_view(MediaMainView())
+
+bot = MyBot()
+
+
+@bot.command()
+async def send_girl_ticket(ctx):
+    embed = discord.Embed(
+        description=(
+            "**❤️️ Роль Девушка**\n\n"
+            "• Нажмите кнопку ниже, чтобы создать тикет для верификации и получения роли Девушка\n\n"
+            "✨ **Информация**\n"
+            "• Создайте тикет для верификации\n"
+            "• Предоставьте доказательства\n"
+            "• Модераторы рассмотрят ваш запрос\n\n"
+            "📸 Чтобы получить роль, откройте тикет или обратитесь к администрации сервера."
+        ),
+        color=discord.Color.from_rgb(255, 105, 180)
+    )
+    embed.set_image(url=GIRL_BANNER_URL)
+    await ctx.send(embed=embed, view=GirlTicketMainView())
+
+
+@bot.command()
+async def send_ticket(ctx):
+    main_embed = discord.Embed(
+        description=(
+            "**Система поддержки ALASH PROJECT KZ**\n\n"
+            "**Возникли вопросы, проблемы или нужна помощь? Опишите ситуацию**\n\n"
+            "**Что можно оформить через тикет?**\n"
+            "• Жалобы на игроков или пользователей.\n"
+            "• Вопросы по серверу или Discord.\n"
+            "• Проблемы с верификацией.\n"
+            "• Ошибки, баги и технические неполадки."
+        ),
+        color=discord.Color.from_rgb(67, 181, 129)
+    )
+    main_embed.set_image(url=MAIN_BANNER_URL)
+    await ctx.send(embed=main_embed, view=TicketMainView())
+
+
+@bot.command()
+async def send_media(ctx):
+    embed = discord.Embed(
+        description=(
+            "**🎬 МЕДИА**\n\n"
+            "Клипы, хайлайты, лучшие моменты и контент от игроков.\n\n"
+            "Делись своими видео и попади в подборку лучших.\n\n"
+            f"❯ **Получи роль:** <@&{MEDIA_ROLE_ID}>\n"
+            "• Жми кнопку ниже и подавай заявку!"
+        ),
+        color=discord.Color.from_rgb(180, 0, 0)
+    )
+    embed.set_image(url=MEDIA_BANNER_URL)
+    await ctx.send(embed=embed, view=MediaMainView())
+
+
+bot.run(os.getenv("DISCORD_TOKEN"))
