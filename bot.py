@@ -2,7 +2,7 @@ import os
 import asyncio
 import discord
 from discord.ext import commands
-from discord.ui import View, Select, Button
+from discord.ui import View, Select, Button, Modal, TextInput
 from flask import Flask
 from threading import Thread
 
@@ -32,6 +32,11 @@ STAFF_ROLE_IDS = [
     1554889058163888188,
     1532841516735795241
 ]
+
+# Канал для получения заявок на Медиа (Укажите ID вашего канала)
+MEDIA_LOG_CHANNEL_ID = 123456789012345678 
+# ID роли Медиа (Укажите ID вашей роли)
+MEDIA_ROLE_ID = 123456789012345678
 
 # --------------------------------------------------
 # 1. ТИКЕТ ИЧИНДЕГИ БАШКАРУУ БАТЫРМАЛАРЫ
@@ -209,7 +214,64 @@ class TicketMainView(View):
 
 
 # --------------------------------------------------
-# 4. БОТТУ БАПТОО ЖАНА КОШУУ
+# 4. МЕДИА АНКЕТАСЫ ЖАНА МОДАЛДЫК ТЕРЕЗЕ
+# --------------------------------------------------
+
+class MediaApplicationModal(Modal, title="Подать заявку"):
+    game_nick = TextInput(
+        label="Ваш ник в игре",
+        placeholder="Введите игровой ник...",
+        required=True,
+        max_length=50
+    )
+    tiktok_link = TextInput(
+        label="Ваш тик ток",
+        placeholder="Ссылка на аккаунт",
+        required=True,
+        max_length=150
+    )
+    steam_id = TextInput(
+        label="Ваш steam ID",
+        placeholder="steam ID можете найти у себя в профиле",
+        style=discord.TextStyle.paragraph,
+        required=True,
+        max_length=100
+    )
+
+    async def on_submit(self, interaction: discord.Interaction):
+        await interaction.response.send_message("Ваша заявка успешно отправлена!", ephemeral=True)
+
+        log_channel = interaction.guild.get_channel(MEDIA_LOG_CHANNEL_ID)
+
+        embed = discord.Embed(
+            title="📥 Новая заявка на Медиа!",
+            color=discord.Color.red()
+        )
+        embed.add_field(name="Отправитель", value=interaction.user.mention, inline=False)
+        embed.add_field(name="Ваш ник в игре", value=self.game_nick.value, inline=False)
+        embed.add_field(name="Ваш тик ток", value=self.tiktok_link.value, inline=False)
+        embed.add_field(name="Ваш steam ID", value=self.steam_id.value, inline=False)
+        embed.set_thumbnail(url=interaction.user.display_avatar.url)
+
+        if log_channel:
+            await log_channel.send(embed=embed)
+
+
+class MediaMainView(View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(
+        label="Подать заявку",
+        style=discord.ButtonStyle.secondary,
+        custom_id="open_media_modal_btn_alash"
+    )
+    async def apply_media_button(self, interaction: discord.Interaction, button: Button):
+        await interaction.response.send_modal(MediaApplicationModal())
+
+
+# --------------------------------------------------
+# 5. БОТТУ БАПТОО ЖАНА КОШУУ
 # --------------------------------------------------
 
 class MyBot(commands.Bot):
@@ -220,6 +282,7 @@ class MyBot(commands.Bot):
         self.add_view(TicketMainView())
         self.add_view(GirlTicketMainView())
         self.add_view(TicketControlView())
+        self.add_view(MediaMainView())
 
 bot = MyBot()
 
@@ -269,9 +332,34 @@ async def send_ticket(ctx):
     if os.path.exists(banner_path):
         file = discord.File(banner_path, filename="banner.png")
         main_embed.set_image(url="attachment://banner.png")
-        await ctx.send(file=file, embed=main_embed, view=TicketMainView())
+        await ctx.send(file=file, embed=embed, view=TicketMainView())
     else:
         await ctx.send(embed=main_embed, view=TicketMainView())
+
+
+@bot.command()
+async def send_media(ctx):
+    embed = discord.Embed(
+        description=(
+            "• Наш проект готов к сотрудничеству с вами как с медиа игроком (TikTok стримы/видео).\n\n"
+            "• Мы предлагаем партнерство, где ваша аудитория и активность помогают продвижению проекта.\n\n"
+            "• Мы уверены, что совместно сможем создавать качественный и интересный контент.\n\n"
+            "❯ **Что вы получите**\n"
+            "• Привилегию на сервере \"Медиа\"\n"
+            f"• Роль в Discord <@&{MEDIA_ROLE_ID}>\n"
+            "• В привилегию \"MEDIA\" входит весь функционал привилегии \"ALASH\""
+        ),
+        color=discord.Color.from_rgb(180, 0, 0)
+    )
+
+    media_banner_path = "banner_media.png"
+
+    if os.path.exists(media_banner_path):
+        file = discord.File(media_banner_path, filename="banner_media.png")
+        embed.set_image(url="attachment://banner_media.png")
+        await ctx.send(file=file, embed=embed, view=MediaMainView())
+    else:
+        await ctx.send(embed=embed, view=MediaMainView())
 
 
 bot.run(os.getenv("DISCORD_TOKEN"))
