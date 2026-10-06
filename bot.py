@@ -6,7 +6,7 @@ from discord.ui import View, Select, Button, Modal, TextInput
 from flask import Flask
 from threading import Thread
 
-# Web-server (Render хостинги 24/7 уктабашы үчүн)
+# Web-server (Render хостингында 24/7 эшләү өчен)
 app = Flask('')
 
 @app.route('/')
@@ -26,20 +26,21 @@ intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
 
-# Администрация/модератор ролдорунун ID-лери:
+# Администрация / модератор рольләренең ID-лары:
 STAFF_ROLE_IDS = [
     1554889319574143088,
     1554889058163888188,
     1532841516735795241
 ]
 
-# Канал для получения заявок на Медиа (Укажите ID вашего канала)
-MEDIA_LOG_CHANNEL_ID = 123456789012345678 
-# ID роли Медиа (Укажите ID вашей роли)
-MEDIA_ROLE_ID = 123456789012345678
+# Медиа лог каналы
+MEDIA_LOG_CHANNEL_ID = 1557045586820333649 
+
+# Медиа роленең ID-сы:
+MEDIA_ROLE_ID = 1557044911440928961
 
 # --------------------------------------------------
-# 1. ТИКЕТ ИЧИНДЕГИ БАШКАРУУ БАТЫРМАЛАРЫ
+# 1. ТИКЕТ ИЧЕНДӘГЕ БАШКАРУ ТӨЙМӘЛӘРЕ
 # --------------------------------------------------
 
 class TicketControlView(View):
@@ -64,7 +65,7 @@ class TicketControlView(View):
 
 
 # --------------------------------------------------
-# 2. КЫЗДАРГА АРНАЛГАН ТИКЕТ
+# 2. КЫЗЛАР ӨЧӘН ТИКЕТ
 # --------------------------------------------------
 
 class GirlTicketMainView(View):
@@ -131,7 +132,7 @@ class GirlTicketMainView(View):
 
 
 # --------------------------------------------------
-# 3. КӘДҮМКИ ТИКЕТТЕР
+# 3. ТӘРТИПТЕГЕ ТИКЕТЛАР
 # --------------------------------------------------
 
 class TicketSelectView(View):
@@ -214,10 +215,10 @@ class TicketMainView(View):
 
 
 # --------------------------------------------------
-# 4. МЕДИА АНКЕТАСЫ ЖАНА МОДАЛДЫК ТЕРЕЗЕ
+# 4. МЕДИА АНКЕТАСЫ ЖӘНӘ ТИКЕТ КАНАЛЫН АЧУ
 # --------------------------------------------------
 
-class MediaApplicationModal(Modal, title="Подать заявку"):
+class MediaApplicationModal(Modal, title="Подать заявку на Медиа"):
     game_nick = TextInput(
         label="Ваш ник в игре",
         placeholder="Введите игровой ник...",
@@ -225,8 +226,8 @@ class MediaApplicationModal(Modal, title="Подать заявку"):
         max_length=50
     )
     tiktok_link = TextInput(
-        label="Ваш тик ток",
-        placeholder="Ссылка на аккаунт",
+        label="Ваш тик ток / Канал",
+        placeholder="Ссылка на ваш аккаунт/канал",
         required=True,
         max_length=150
     )
@@ -239,22 +240,74 @@ class MediaApplicationModal(Modal, title="Подать заявку"):
     )
 
     async def on_submit(self, interaction: discord.Interaction):
-        await interaction.response.send_message("Ваша заявка успешно отправлена!", ephemeral=True)
+        await interaction.response.defer(ephemeral=True)
 
-        log_channel = interaction.guild.get_channel(MEDIA_LOG_CHANNEL_ID)
+        guild = interaction.guild
+        user = interaction.user
+        channel_name = f"медиа-{user.name}"
 
+        # Алдан ачылган тикет бармы-юкмы тикшерү
+        existing_channel = discord.utils.get(guild.text_channels, name=channel_name)
+        if existing_channel:
+            await interaction.followup.send(f"У вас уже открыт медиа тикет: {existing_channel.mention}", ephemeral=True)
+            return
+
+        # Каналга рөхсәтләр (Permissions)
+        overwrites = {
+            guild.default_role: discord.PermissionOverwrite(read_messages=False),
+            user: discord.PermissionOverwrite(read_messages=True, send_messages=True),
+            guild.me: discord.PermissionOverwrite(read_messages=True, send_messages=True)
+        }
+
+        valid_roles_to_ping = []
+        for role_id in STAFF_ROLE_IDS:
+            role = guild.get_role(role_id)
+            if role:
+                overwrites[role] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
+                valid_roles_to_ping.append(role.mention)
+
+        # Тикет каналын булдыру
+        ticket_channel = await guild.create_text_channel(
+            name=channel_name,
+            overwrites=overwrites,
+            reason=f"Медиа тикет открыт: {user.name}"
+        )
+
+        roles_ping_text = " ".join(valid_roles_to_ping) if valid_roles_to_ping else ""
+
+        # Тикет каналы эчендәге Embed
         embed = discord.Embed(
-            title="📥 Новая заявка на Медиа!",
+            title="🎬 Заявка на роль МЕДИА",
+            description="Ожидайте ответа от администрации или медиа-кураторов.",
             color=discord.Color.red()
         )
-        embed.add_field(name="Отправитель", value=interaction.user.mention, inline=False)
-        embed.add_field(name="Ваш ник в игре", value=self.game_nick.value, inline=False)
-        embed.add_field(name="Ваш тик ток", value=self.tiktok_link.value, inline=False)
-        embed.add_field(name="Ваш steam ID", value=self.steam_id.value, inline=False)
-        embed.set_thumbnail(url=interaction.user.display_avatar.url)
+        embed.add_field(name="• Пользователь", value=user.mention, inline=False)
+        embed.add_field(name="• Ник в игре", value=self.game_nick.value, inline=False)
+        embed.add_field(name="• TikTok / Канал", value=self.tiktok_link.value, inline=False)
+        embed.add_field(name="• Steam ID", value=self.steam_id.value, inline=False)
+        embed.set_thumbnail(url=user.display_avatar.url)
 
+        await ticket_channel.send(
+            content=f"{user.mention} {roles_ping_text}".strip(),
+            embed=embed,
+            view=TicketControlView()
+        )
+
+        # Лог каналына күчермәсен җибәрү
+        log_channel = guild.get_channel(MEDIA_LOG_CHANNEL_ID)
         if log_channel:
-            await log_channel.send(embed=embed)
+            log_embed = discord.Embed(
+                title="📥 Новая заявка на Медиа (Лог)",
+                color=discord.Color.red()
+            )
+            log_embed.add_field(name="Пользователь", value=user.mention, inline=False)
+            log_embed.add_field(name="Ник в игре", value=self.game_nick.value, inline=False)
+            log_embed.add_field(name="TikTok / Канал", value=self.tiktok_link.value, inline=False)
+            log_embed.add_field(name="Steam ID", value=self.steam_id.value, inline=False)
+            log_embed.add_field(name="Созданный тикет", value=ticket_channel.mention, inline=False)
+            await log_channel.send(embed=log_embed)
+
+        await interaction.followup.send(f"Ваш медиа тикет создан: {ticket_channel.mention}", ephemeral=True)
 
 
 class MediaMainView(View):
@@ -263,7 +316,7 @@ class MediaMainView(View):
 
     @discord.ui.button(
         label="Подать заявку",
-        style=discord.ButtonStyle.secondary,
+        style=discord.ButtonStyle.danger,
         custom_id="open_media_modal_btn_alash"
     )
     async def apply_media_button(self, interaction: discord.Interaction, button: Button):
@@ -271,7 +324,7 @@ class MediaMainView(View):
 
 
 # --------------------------------------------------
-# 5. БОТТУ БАПТОО ЖАНА КОШУУ
+# 5. БОТНЫ СӨЙЛӘҮ ЖӘНӘ ЭШКӘ ҖИБӘРҮ
 # --------------------------------------------------
 
 class MyBot(commands.Bot):
@@ -332,7 +385,7 @@ async def send_ticket(ctx):
     if os.path.exists(banner_path):
         file = discord.File(banner_path, filename="banner.png")
         main_embed.set_image(url="attachment://banner.png")
-        await ctx.send(file=file, embed=embed, view=TicketMainView())
+        await ctx.send(file=file, embed=main_embed, view=TicketMainView())
     else:
         await ctx.send(embed=main_embed, view=TicketMainView())
 
@@ -341,19 +394,18 @@ async def send_ticket(ctx):
 async def send_media(ctx):
     embed = discord.Embed(
         description=(
-            "• Наш проект готов к сотрудничеству с вами как с медиа игроком (TikTok стримы/видео).\n\n"
-            "• Мы предлагаем партнерство, где ваша аудитория и активность помогают продвижению проекта.\n\n"
-            "• Мы уверены, что совместно сможем создавать качественный и интересный контент.\n\n"
-            "❯ **Что вы получите**\n"
-            "• Привилегию на сервере \"Медиа\"\n"
-            f"• Роль в Discord <@&{MEDIA_ROLE_ID}>\n"
-            "• В привилегию \"MEDIA\" входит весь функционал привилегии \"ALASH\""
+            "**🎬 МЕДИА**\n\n"
+            "Клипы, хайлайты, лучшие моменты и контент от игроков.\n\n"
+            "Делись своими видео и попади в подборку лучших.\n\n"
+            f"❯ **Получи роль:** <@&{MEDIA_ROLE_ID}>\n"
+            "• Жми кнопку ниже и подавай заявку!"
         ),
         color=discord.Color.from_rgb(180, 0, 0)
     )
 
     media_banner_path = "banner_media.png"
 
+    # Сурәт файлы "banner_media.png" исеме белән бот папксында булырга тиеш
     if os.path.exists(media_banner_path):
         file = discord.File(media_banner_path, filename="banner_media.png")
         embed.set_image(url="attachment://banner_media.png")
