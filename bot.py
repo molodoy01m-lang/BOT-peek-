@@ -230,7 +230,7 @@ async def send_girl_ticket(ctx):
         color=discord.Color.from_rgb(255, 105, 180)
     )
 
-   girl_banner_path = "banner_girl.png"
+  girl_banner_path = "banner_girl.png"
 
     if os.path.exists(girl_banner_path):
         file = discord.File(girl_banner_path, filename="banner_girl.png")
