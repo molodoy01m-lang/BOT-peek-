@@ -227,17 +227,19 @@ async def send_girl_ticket(ctx):
             "• Модераторы рассмотрят ваш запрос\n\n"
             "👤 Чтобы получить роль, откройте тикет или обратитесь к администрации сервера."
         ),
-       color=discord.Color.from_rgb(255, 105, 180)
+ color=discord.Color.from_rgb(255, 105, 180)
 )
 
-girl_banner_path = "banner_girl.png"
+@bot.command()
+async def send_girl_ticket(ctx):
+    girl_banner_path = "banner_girl.png"
 
-if os.path.exists(girl_banner_path):
-    file = discord.File(girl_banner_path, filename="banner_girl.png")
-    embed.set_image(url="attachment://banner_girl.png")
-    await ctx.send(file=file, embed=embed, view=GirlTicketMainView())
-else:
-    await ctx.send(embed=embed, view=GirlTicketMainView())
+    if os.path.exists(girl_banner_path):
+        file = discord.File(girl_banner_path, filename="banner_girl.png")
+        embed.set_image(url="attachment://banner_girl.png")
+        await ctx.send(file=file, embed=embed, view=GirlTicketMainView())
+    else:
+        await ctx.send(embed=embed, view=GirlTicketMainView())
 
 
 @bot.command()
@@ -265,5 +267,4 @@ async def send_ticket(ctx):
         await ctx.send(embed=main_embed, view=TicketMainView())
 
 
-# Файлдың ең соңғы жолы (токенді осылай қауіпсіз шақырамыз):
 bot.run(os.getenv("DISCORD_TOKEN"))
