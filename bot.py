@@ -254,13 +254,15 @@ async def send_ticket(ctx):
         color=discord.Color.from_rgb(67, 181, 129)
     )
 
-    banner_path = r"C:\Users\prime\Desktop\banner.png"
+  # 257-жолды мынаған ауыстырыңыз (C:\... жолын өшіріңіз):
+banner_path = "banner.png"  # Егер banner.png файлы репозиторийде болса
 
-    if os.path.exists(banner_path):
-        file = discord.File(banner_path, filename="banner.png")
-        main_embed.set_image(url="attachment://banner.png")
-        await ctx.send(file=file, embed=main_embed, view=TicketMainView())
-    else:
-        await ctx.send(embed=embed, view=TicketMainView())
-
-bot.run("MTU0NjI3MTQ5NzI3MjY5Mjc1Ng.GJczGP.ItSq2sSpZVqKjHdbbaGWL6mEYEAVEXISsacvcE")
+if os.path.exists(banner_path):
+    file = discord.File(banner_path, filename="banner.png")
+    main_embed.set_image(url="attachment://banner.png")
+    await ctx.send(file=file, embed=main_embed, view=TicketMainView())
+else:
+    await ctx.send(embed=main_embed, view=TicketMainView())
+    
+# Ең соңғы жолды жаңа токенмен жаңартыңыз:
+bot.run("MTU0NjI3MTQ5NzI3MjY5Mjc1Ng.GvT5T2.gM2SsFzsXbOVAZ3n3Mtj6K0xptKH2DPdo2MnsM")
