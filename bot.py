@@ -1,12 +1,12 @@
+import os
+import asyncio
 import discord
 from discord.ext import commands
 from discord.ui import View, Select, Button
-import asyncio
-import os
 from flask import Flask
 from threading import Thread
 
-# Web-server (Render хостингі 24/7 ұйықтамауы үшін)
+# Web-server (Render хостинги 24/7 уктабашы үчүн)
 app = Flask('')
 
 @app.route('/')
@@ -26,16 +26,17 @@ intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
 
-# Администрация/модератор ролдерінің ID-лері:
+# Администрация/модератор ролдорунун ID-лери:
 STAFF_ROLE_IDS = [
     1554889319574143088,
     1554889058163888188,
     1532841516735795241
 ]
 
-# -------------------------------------------------------------
-# 1. ТИКЕТ ІШІНДЕГІ БАСҚАРУ БАТЫРМАЛАРЫ
-# -------------------------------------------------------------
+# --------------------------------------------------
+# 1. ТИКЕТ ИЧИНДЕГИ БАШКАРУУ БАТЫРМАЛАРЫ
+# --------------------------------------------------
+
 class TicketControlView(View):
     def __init__(self):
         super().__init__(timeout=None)
@@ -52,21 +53,23 @@ class TicketControlView(View):
 
     @discord.ui.button(label="Закрыть тикет", style=discord.ButtonStyle.danger, custom_id="ticket_close_btn_alash")
     async def close_button(self, interaction: discord.Interaction, button: Button):
-        await interaction.response.send_message("**Тикет закрывается и будет удален...**", ephemeral=False)
+        await interaction.response.send_message("***Тикет закрывается и будет удален...***", ephemeral=False)
         await asyncio.sleep(3)
         await interaction.channel.delete(reason=f"Тикет закрыт: {interaction.user.name}")
 
-# -------------------------------------------------------------
-# 2. ҚЫЗДАРҒА АРНАЛҒАН ТИКЕТ (!send_girl_ticket)
-# -------------------------------------------------------------
+
+# --------------------------------------------------
+# 2. КЫЗДАРГА АРНАЛГАН ТИКЕТ
+# --------------------------------------------------
+
 class GirlTicketMainView(View):
     def __init__(self):
         super().__init__(timeout=None)
 
     @discord.ui.button(
-        label="Получить роль девушка", 
-        emoji="🌸", 
-        style=discord.ButtonStyle.secondary, 
+        label="Получить роль девушка",
+        emoji="🌸",
+        style=discord.ButtonStyle.secondary,
         custom_id="open_girl_ticket_btn_alash"
     )
     async def open_girl_ticket(self, interaction: discord.Interaction, button: Button):
@@ -114,16 +117,18 @@ class GirlTicketMainView(View):
         embed.add_field(name="• Пользователь", value=user.mention, inline=False)
 
         await ticket_channel.send(
-            content=f"{user.mention} {roles_ping_text}".strip(), 
-            embed=embed, 
+            content=f"{user.mention} {roles_ping_text}".strip(),
+            embed=embed,
             view=TicketControlView()
         )
 
         await interaction.followup.send(f"Ваш тикет создан: {ticket_channel.mention}", ephemeral=True)
 
-# -------------------------------------------------------------
-# 3. КӘДІМГІ ТИКЕТТЕР (!send_ticket)
-# -------------------------------------------------------------
+
+# --------------------------------------------------
+# 3. КӘДҮМКИ ТИКЕТТЕР
+# --------------------------------------------------
+
 class TicketSelectView(View):
     def __init__(self):
         super().__init__(timeout=60)
@@ -147,7 +152,7 @@ class TicketSelectView(View):
 
         existing_channel = discord.utils.get(guild.text_channels, name=channel_name)
         if existing_channel:
-            await interaction.followup.send(f"У вас уже есть открытый тикет: {existing_channel.mention}", ephemeral=True)
+            await interaction.followup.send(f"У вас уже открыт тикет: {existing_channel.mention}", ephemeral=True)
             return
 
         overwrites = {
@@ -179,31 +184,34 @@ class TicketSelectView(View):
             color=discord.Color.from_rgb(67, 181, 129)
         )
         embed.add_field(name="• Пользователь", value=user.mention, inline=False)
-        embed.add_field(name="• Категория", value=f"`{select.values[0]}`", inline=False)
+        embed.add_field(name="• Категория", value=f"{select.values[0]}", inline=False)
 
         await ticket_channel.send(
-            content=f"{user.mention} {roles_ping_text}".strip(), 
-            embed=embed, 
+            content=f"{user.mention} {roles_ping_text}".strip(),
+            embed=embed,
             view=TicketControlView()
         )
 
         await interaction.followup.send(f"Ваш тикет создан: {ticket_channel.mention}", ephemeral=True)
 
+
 class TicketMainView(View):
     def __init__(self):
         super().__init__(timeout=None)
 
-    @discord.ui.button(label="Открыть тикет", style=discord.ButtonStyle.secondary, custom_id="open_ticket_main_btn_alash")
-    async def open_ticket_button(self, interaction: discord.Interaction, button: Button):
+    @discord.ui.button(label="Открыть тикет", style=discord.ButtonStyle.primary, custom_id="open_ticket_main_btn_alash")
+    async def open_ticket(self, interaction: discord.Interaction, button: Button):
         await interaction.response.send_message(
             "Выберите нужную категорию для открытия тикета:",
             view=TicketSelectView(),
             ephemeral=True
         )
 
-# -------------------------------------------------------------
-# 4. БОТТЫ БАПТАУ ЖӘНЕ ҚОСУ
-# -------------------------------------------------------------
+
+# --------------------------------------------------
+# 4. БОТТУ БАПТОО ЖАНА КОШУУ
+# --------------------------------------------------
+
 class MyBot(commands.Bot):
     def __init__(self):
         super().__init__(command_prefix="!", intents=intents)
@@ -215,23 +223,22 @@ class MyBot(commands.Bot):
 
 bot = MyBot()
 
+
 @bot.command()
 async def send_girl_ticket(ctx):
     embed = discord.Embed(
         description=(
-            "❤️️ **Роль Девушка**\n\n"
+            "**❤️ Роль Девушка**\n\n"
             "• Нажмите кнопку ниже, чтобы создать тикет для верификации и получения роли Девушка\n\n"
-            "✨ **Информация**\n\n"
+            "✨ **Информация**\n"
             "• Создайте тикет для верификации\n"
             "• Предоставьте доказательства\n"
             "• Модераторы рассмотрят ваш запрос\n\n"
-            "👤 Чтобы получить роль, откройте тикет или обратитесь к администрации сервера."
+            "📸 Чтобы получить роль, откройте тикет или обратитесь к администрации сервера."
         ),
- color=discord.Color.from_rgb(255, 105, 180)
-)
+        color=discord.Color.from_rgb(255, 105, 180)
+    )
 
-@bot.command()
-async def send_girl_ticket(ctx):
     girl_banner_path = "banner_girl.png"
 
     if os.path.exists(girl_banner_path):
