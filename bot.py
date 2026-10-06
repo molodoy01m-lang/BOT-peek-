@@ -6,7 +6,7 @@ from discord.ui import View, Select, Button, Modal, TextInput
 from flask import Flask
 from threading import Thread
 
-# Web-server (для поддержания работы 24/7 на Render)
+# Web-server (Render хостингінде 24/7 жұмыс істеу үшін)
 app = Flask('')
 
 @app.route('/')
@@ -27,23 +27,30 @@ intents.message_content = True
 intents.members = True
 
 # --------------------------------------------------
+# БАННЕРЛЕРДІҢ СІЛТЕМЕЛЕРІ (URL)
+# --------------------------------------------------
+MAIN_BANNER_URL = "https://multibot.pro/api/embeds/images/g4mmec3lwfcrwi4l"
+GIRL_BANNER_URL = "https://multibot.pro/api/embeds/images/9hvm8ltfsis07owb"
+MEDIA_BANNER_URL = "https://multibot.pro/api/embeds/images/nfmpvssumgp3km0o"
+
+# --------------------------------------------------
 # ИДЕНТИФИКАТОРЫ РОЛЕЙ
 # --------------------------------------------------
 
-# 1. ОБЩИЕ ТИКЕТЫ (Администрация / Модерация):
+# 1. ЖАЛПЫ ТИКЕТТЕР:
 STAFF_ROLE_IDS = [
-    1556691625294696559,
-    1554889319574143088
+    1557048240329719870,
+    1556691625294696559
 ]
 
-# 2. ОТДЕЛЬНЫЕ РОЛИ ДЛЯ ТИКЕТА ДЕВУШЕК:
+# 2. ҚЫЗДАР ТИКЕТІ:
 GIRL_STAFF_ROLE_IDS = [
     1556691625294696559
 ]
 
-# 3. ОТДЕЛЬНЫЕ РОЛИ ДЛЯ МЕДИА ТИКЕТОВ:
+# 3. МЕДИА ТИКЕТІ:
 MEDIA_STAFF_ROLE_IDS = [
-    1556691625294696559
+   1556691625294696559
 ]
 
 # --------------------------------------------------
@@ -53,7 +60,6 @@ TICKET_LOG_CHANNEL_ID = 1557052346939482247
 GIRL_LOG_CHANNEL_ID = 1557052405194166405
 MEDIA_LOG_CHANNEL_ID = 1557045586820333649
 
-# Роль Медиа:
 MEDIA_ROLE_ID = 1557044911440928961
 
 
@@ -350,159 +356,4 @@ class MediaApplicationModal(Modal, title="Подать заявку на Мед�
 
         overwrites = {
             guild.default_role: discord.PermissionOverwrite(read_messages=False),
-            user: discord.PermissionOverwrite(read_messages=True, send_messages=True),
-            guild.me: discord.PermissionOverwrite(read_messages=True, send_messages=True)
-        }
-
-        valid_roles_to_ping = []
-        for role_id in MEDIA_STAFF_ROLE_IDS:
-            role = guild.get_role(role_id)
-            if role:
-                overwrites[role] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
-                valid_roles_to_ping.append(role.mention)
-
-        ticket_channel = await guild.create_text_channel(
-            name=channel_name,
-            overwrites=overwrites,
-            reason=f"Медиа тикет открыт: {user.name}"
-        )
-
-        roles_ping_text = " ".join(valid_roles_to_ping) if valid_roles_to_ping else ""
-
-        embed = discord.Embed(
-            title="🎬 Заявка на роль МЕДИА",
-            description="Ожидайте ответа от медиа-кураторов.",
-            color=discord.Color.red()
-        )
-        embed.add_field(name="• Пользователь", value=user.mention, inline=False)
-        embed.add_field(name="• Ник в игре", value=self.game_nick.value, inline=False)
-        embed.add_field(name="• TikTok / Канал", value=self.tiktok_link.value, inline=False)
-        embed.add_field(name="• Steam ID", value=self.steam_id.value, inline=False)
-        embed.set_thumbnail(url=user.display_avatar.url)
-
-        await ticket_channel.send(
-            content=f"{user.mention} {roles_ping_text}".strip(),
-            embed=embed,
-            view=TicketControlView(ticket_type="media")
-        )
-
-        await send_log(
-            guild=guild,
-            channel_id=MEDIA_LOG_CHANNEL_ID,
-            title="🎬 Новая заявка на Медиа",
-            description=f"Пользователь {user.mention} подал заявку: {ticket_channel.mention}",
-            color=discord.Color.red(),
-            fields={
-                "Ник в игре": self.game_nick.value,
-                "TikTok / Канал": self.tiktok_link.value,
-                "Steam ID": self.steam_id.value
-            }
-        )
-
-        await interaction.followup.send(f"Ваш медиа тикет создан: {ticket_channel.mention}", ephemeral=True)
-
-
-class MediaMainView(View):
-    def __init__(self):
-        super().__init__(timeout=None)
-
-    @discord.ui.button(
-        label="Подать заявку",
-        style=discord.ButtonStyle.danger,
-        custom_id="open_media_modal_btn_alash"
-    )
-    async def apply_media_button(self, interaction: discord.Interaction, button: Button):
-        await interaction.response.send_modal(MediaApplicationModal())
-
-
-# --------------------------------------------------
-# 5. ЗАПУСК БОТА
-# --------------------------------------------------
-
-class MyBot(commands.Bot):
-    def __init__(self):
-        super().__init__(command_prefix="!", intents=intents)
-
-    async def setup_hook(self):
-        self.add_view(TicketMainView())
-        self.add_view(GirlTicketMainView())
-        self.add_view(TicketControlView())
-        self.add_view(MediaMainView())
-
-bot = MyBot()
-
-
-@bot.command()
-async def send_girl_ticket(ctx):
-    embed = discord.Embed(
-        description=(
-            "**❤️ Роль Девушка**\n\n"
-            "• Нажмите кнопку ниже, чтобы создать тикет для верификации и получения роли Девушка\n\n"
-            "✨ **Информация**\n"
-            "• Создайте тикет для верификации\n"
-            "• Предоставьте доказательства\n"
-            "• Модераторы рассмотрят ваш запрос\n\n"
-            "📸 Чтобы получить роль, откройте тикет или обратитесь к администрации сервера."
-        ),
-        color=discord.Color.from_rgb(255, 105, 180)
-    )
-
-    girl_banner_path = "banner_girl.png"
-
-    if os.path.exists(girl_banner_path):
-        file = discord.File(girl_banner_path, filename="banner_girl.png")
-        embed.set_image(url="attachment://banner_girl.png")
-        await ctx.send(file=file, embed=embed, view=GirlTicketMainView())
-    else:
-        await ctx.send(embed=embed, view=GirlTicketMainView())
-
-
-@bot.command()
-async def send_ticket(ctx):
-    main_embed = discord.Embed(
-        description=(
-            "**Система поддержки ALASH PROJECT KZ**\n\n"
-            "**Возникли вопросы, проблемы или нужна помощь? Опишите ситуацию**\n\n"
-            "**Что можно оформить через тикет?**\n"
-            "• Жалобы на игроков или пользователей.\n"
-            "• Вопросы по серверу или Discord.\n"
-            "• Проблемы с верификацией.\n"
-            "• Ошибки, баги и технические неполадки."
-        ),
-        color=discord.Color.from_rgb(67, 181, 129)
-    )
-
-    banner_path = "banner.png"
-
-    if os.path.exists(banner_path):
-        file = discord.File(banner_path, filename="banner.png")
-        main_embed.set_image(url="attachment://banner.png")
-        await ctx.send(file=file, embed=main_embed, view=TicketMainView())
-    else:
-        await ctx.send(embed=main_embed, view=TicketMainView())
-
-
-@bot.command()
-async def send_media(ctx):
-    embed = discord.Embed(
-        description=(
-            "**🎬 МЕДИА**\n\n"
-            "Клипы, хайлайты, лучшие моменты и контент от игроков.\n\n"
-            "Делись своими видео и попади в подборку лучших.\n\n"
-            f"❯ **Получи роль:** <@&{MEDIA_ROLE_ID}>\n"
-            "• Жми кнопку ниже и подавай заявку!"
-        ),
-        color=discord.Color.from_rgb(180, 0, 0)
-    )
-
-    media_banner_path = "banner_media.png"
-
-    if os.path.exists(media_banner_path):
-        file = discord.File(media_banner_path, filename="banner_media.png")
-        embed.set_image(url="attachment://banner_media.png")
-        await ctx.send(file=file, embed=embed, view=MediaMainView())
-    else:
-        await ctx.send(embed=embed, view=MediaMainView())
-
-
-bot.run(os.getenv("DISCORD_TOKEN"))
+            user: discord.PermissionOverwrite(read_messages=True, send_messages=
