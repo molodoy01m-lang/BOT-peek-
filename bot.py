@@ -26,18 +26,35 @@ intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
 
-# Администрация / модератор рольләренең ID-лары:
+# --------------------------------------------------
+# РОЛЬЛӘРНЕҢ ID-ЛАРЫ
+# --------------------------------------------------
+
+# 1. ГАДИ ТИКЕТЛАР ӨЧӘН АДМИН/МОДЕРАТОР РОЛЬЛӘРЕ:
 STAFF_ROLE_IDS = [
-    1554889319574143088,
-    1554889058163888188,
-    1532841516735795241
+    1557048209631739908,
 ]
 
-# Медиа лог каналы
+# 2. КЫЗЛАР ТИКЕТЫ ӨЧӘН БӨЛЕК РОЛЬЛӘР:
+GIRL_STAFF_ROLE_IDS = [
+    1530890552676188301,
+    1532745811778207985,
+    1530886657530925256# Кызлар тикетын карый торган рольләр
+]
+
+# 3. МЕДИА ТИКЕТЫ ӨЧӘН БӨЛЕК РОЛЬЛӘР (Медиа-кураторлар):
+MEDIA_STAFF_ROLE_IDS = [
+    1530888828246556753,
+    1530886657530925256,
+    1532745811778207985# Монда медиа тикетларын гына күрә торган рольләрнең ID-сын языгыз
+]
+
+# Медиа лог каналы:
 MEDIA_LOG_CHANNEL_ID = 1557045586820333649 
 
 # Медиа роленең ID-сы:
 MEDIA_ROLE_ID = 1557044911440928961
+
 
 # --------------------------------------------------
 # 1. ТИКЕТ ИЧЕНДӘГЕ БАШКАРУ ТӨЙМӘЛӘРЕ
@@ -65,7 +82,7 @@ class TicketControlView(View):
 
 
 # --------------------------------------------------
-# 2. КЫЗЛАР ӨЧӘН ТИКЕТ
+# 2. КЫЗЛАР ӨЧӘН ТИКЕТ (БӨЛЕК РОЛЬЛӘР БӘЛӘН)
 # --------------------------------------------------
 
 class GirlTicketMainView(View):
@@ -98,7 +115,7 @@ class GirlTicketMainView(View):
         }
 
         valid_roles_to_ping = []
-        for role_id in STAFF_ROLE_IDS:
+        for role_id in GIRL_STAFF_ROLE_IDS:
             role = guild.get_role(role_id)
             if role:
                 overwrites[role] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
@@ -132,7 +149,7 @@ class GirlTicketMainView(View):
 
 
 # --------------------------------------------------
-# 3. ТӘРТИПТЕГЕ ТИКЕТЛАР
+# 3. ГАДИ ТИКЕТЛАР
 # --------------------------------------------------
 
 class TicketSelectView(View):
@@ -215,7 +232,7 @@ class TicketMainView(View):
 
 
 # --------------------------------------------------
-# 4. МЕДИА АНКЕТАСЫ ЖӘНӘ ТИКЕТ КАНАЛЫН АЧУ
+# 4. МЕДИА ӨЧӘН БӨЛЕК ТИКЕТ
 # --------------------------------------------------
 
 class MediaApplicationModal(Modal, title="Подать заявку на Медиа"):
@@ -246,13 +263,11 @@ class MediaApplicationModal(Modal, title="Подать заявку на Мед�
         user = interaction.user
         channel_name = f"медиа-{user.name}"
 
-        # Алдан ачылган тикет бармы-юкмы тикшерү
         existing_channel = discord.utils.get(guild.text_channels, name=channel_name)
         if existing_channel:
             await interaction.followup.send(f"У вас уже открыт медиа тикет: {existing_channel.mention}", ephemeral=True)
             return
 
-        # Каналга рөхсәтләр (Permissions)
         overwrites = {
             guild.default_role: discord.PermissionOverwrite(read_messages=False),
             user: discord.PermissionOverwrite(read_messages=True, send_messages=True),
@@ -260,13 +275,13 @@ class MediaApplicationModal(Modal, title="Подать заявку на Мед�
         }
 
         valid_roles_to_ping = []
-        for role_id in STAFF_ROLE_IDS:
+        # Монда тик МЕДИА кураторларының рольләренә рөхсәт бирелә:
+        for role_id in MEDIA_STAFF_ROLE_IDS:
             role = guild.get_role(role_id)
             if role:
                 overwrites[role] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
                 valid_roles_to_ping.append(role.mention)
 
-        # Тикет каналын булдыру
         ticket_channel = await guild.create_text_channel(
             name=channel_name,
             overwrites=overwrites,
@@ -275,10 +290,9 @@ class MediaApplicationModal(Modal, title="Подать заявку на Мед�
 
         roles_ping_text = " ".join(valid_roles_to_ping) if valid_roles_to_ping else ""
 
-        # Тикет каналы эчендәге Embed
         embed = discord.Embed(
             title="🎬 Заявка на роль МЕДИА",
-            description="Ожидайте ответа от администрации или медиа-кураторов.",
+            description="Ожидайте ответа от медиа-кураторов.",
             color=discord.Color.red()
         )
         embed.add_field(name="• Пользователь", value=user.mention, inline=False)
@@ -293,7 +307,6 @@ class MediaApplicationModal(Modal, title="Подать заявку на Мед�
             view=TicketControlView()
         )
 
-        # Лог каналына күчермәсен җибәрү
         log_channel = guild.get_channel(MEDIA_LOG_CHANNEL_ID)
         if log_channel:
             log_embed = discord.Embed(
@@ -324,7 +337,7 @@ class MediaMainView(View):
 
 
 # --------------------------------------------------
-# 5. БОТНЫ СӨЙЛӘҮ ЖӘНӘ ЭШКӘ ҖИБӘРҮ
+# 5. БОТНЫ ЭШКӘ ҖИБӘРҮ
 # --------------------------------------------------
 
 class MyBot(commands.Bot):
@@ -405,7 +418,6 @@ async def send_media(ctx):
 
     media_banner_path = "banner_media.png"
 
-    # Сурәт файлы "banner_media.png" исеме белән бот папксында булырга тиеш
     if os.path.exists(media_banner_path):
         file = discord.File(media_banner_path, filename="banner_media.png")
         embed.set_image(url="attachment://banner_media.png")
