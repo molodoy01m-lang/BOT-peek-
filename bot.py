@@ -227,17 +227,18 @@ async def send_girl_ticket(ctx):
             "• Модераторы рассмотрят ваш запрос\n\n"
             "👤 Чтобы получить роль, откройте тикет или обратитесь к администрации сервера."
         ),
-        color=discord.Color.from_rgb(255, 105, 180)
-    )
+       color=discord.Color.from_rgb(255, 105, 180)
+)
 
-  girl_banner_path = "banner_girl.png"
+girl_banner_path = "banner_girl.png"
 
-    if os.path.exists(girl_banner_path):
-        file = discord.File(girl_banner_path, filename="banner_girl.png")
-        embed.set_image(url="attachment://banner_girl.png")
-        await ctx.send(file=file, embed=embed, view=GirlTicketMainView())
-    else:
-        await ctx.send(embed=embed, view=GirlTicketMainView())
+if os.path.exists(girl_banner_path):
+    file = discord.File(girl_banner_path, filename="banner_girl.png")
+    embed.set_image(url="attachment://banner_girl.png")
+    await ctx.send(file=file, embed=embed, view=GirlTicketMainView())
+else:
+    await ctx.send(embed=embed, view=GirlTicketMainView())
+
 
 @bot.command()
 async def send_ticket(ctx):
@@ -245,7 +246,7 @@ async def send_ticket(ctx):
         description=(
             "**Система поддержки ALASH PROJECT KZ**\n\n"
             "**Возникли вопросы, проблемы или нужна помощь? Опишите ситуацию**\n\n"
-            "**Что можно оформить через тикет?**\n\n"
+            "**Что можно оформить через тикет?**\n"
             "• Жалобы на игроков или пользователей.\n"
             "• Вопросы по серверу или Discord.\n"
             "• Проблемы с верификацией.\n"
@@ -261,6 +262,8 @@ async def send_ticket(ctx):
         main_embed.set_image(url="attachment://banner.png")
         await ctx.send(file=file, embed=main_embed, view=TicketMainView())
     else:
-        await ctx.send(embed=embed, view=TicketMainView())
-    
+        await ctx.send(embed=main_embed, view=TicketMainView())
+
+
+# Файлдың ең соңғы жолы (токенді осылай қауіпсіз шақырамыз):
 bot.run(os.getenv("DISCORD_TOKEN"))
