@@ -40,9 +40,8 @@ MEDIA_BANNER_URL = "https://multibot.pro/api/embeds/images/nfmpvssumgp3km0o"
 STAFF_ROLE_IDS = [
     1557002520696463431,
     1532745811778207985,
-    1530888080905601044,
-    1530888314100645949,
     1530888429888602152,
+    1530888080905601044,
     1530886657530925256
 ]
 
@@ -417,7 +416,7 @@ class MediaMainView(View):
 
     @discord.ui.button(
         label="Подать заявку",
-        style=discord.ButtonStyle.danger,
+        style=discord.ButtonStyle.secondary,
         custom_id="open_media_modal_btn_alash"
     )
     async def apply_media_button(self, interaction: discord.Interaction, button: Button):
@@ -443,9 +442,14 @@ bot = MyBot()
 
 @bot.command()
 async def send_girl_ticket(ctx):
-    embed = discord.Embed(
+    # 1. Тек баннер суреті бар жоғарғы Эмбед
+    image_embed = discord.Embed(color=discord.Color.from_rgb(255, 105, 180))
+    image_embed.set_image(url=GIRL_BANNER_URL)
+
+    # 2. Төменгі мәтіні бар Эмбед
+    text_embed = discord.Embed(
         description=(
-            "**❤️️ Роль Девушка**\n\n"
+            "**❤️ Роль Девушка**\n\n"
             "• Нажмите кнопку ниже, чтобы создать тикет для верификации и получения роли Девушка\n\n"
             "✨ **Информация**\n"
             "• Создайте тикет для верификации\n"
@@ -455,13 +459,18 @@ async def send_girl_ticket(ctx):
         ),
         color=discord.Color.from_rgb(255, 105, 180)
     )
-    embed.set_image(url=GIRL_BANNER_URL)
-    await ctx.send(embed=embed, view=GirlTicketMainView())
+
+    await ctx.send(embeds=[image_embed, text_embed], view=GirlTicketMainView())
 
 
 @bot.command()
 async def send_ticket(ctx):
-    main_embed = discord.Embed(
+    # 1. Тек баннер суреті бар жоғарғы Эмбед
+    image_embed = discord.Embed(color=discord.Color.from_rgb(67, 181, 129))
+    image_embed.set_image(url=MAIN_BANNER_URL)
+
+    # 2. Төменгі мәтіні бар Эмбед
+    text_embed = discord.Embed(
         description=(
             "**Система поддержки ALASH PROJECT KZ**\n\n"
             "**Возникли вопросы, проблемы или нужна помощь? Опишите ситуацию**\n\n"
@@ -473,24 +482,31 @@ async def send_ticket(ctx):
         ),
         color=discord.Color.from_rgb(67, 181, 129)
     )
-    main_embed.set_image(url=MAIN_BANNER_URL)
-    await ctx.send(embed=main_embed, view=TicketMainView())
+
+    await ctx.send(embeds=[image_embed, text_embed], view=TicketMainView())
 
 
 @bot.command()
 async def send_media(ctx):
-    embed = discord.Embed(
+    # 1. Тек баннер суреті бар жоғарғы Эмбед
+    image_embed = discord.Embed(color=discord.Color.from_rgb(180, 0, 0))
+    image_embed.set_image(url=MEDIA_BANNER_URL)
+
+    # 2. Төменгі мәтіні бар Эмбед
+    text_embed = discord.Embed(
         description=(
-            "**🎬 МЕДИА**\n\n"
-            "Клипы, хайлайты, лучшие моменты и контент от игроков.\n\n"
-            "Делись своими видео и попади в подборку лучших.\n\n"
-            f"❯ **Получи роль:** <@&{MEDIA_ROLE_ID}>\n"
-            "• Жми кнопку ниже и подавай заявку!"
+            "• Наш проект готов к сотрудничеству с вами как с медиа игроком (TikTok стримы/видео).\n\n"
+            "• Мы предлагаем партнерство, где ваша аудитория и активность помогают продвижению проекта.\n\n"
+            "• Мы уверены, что совместно сможем создавать качественный и интересный контент.\n\n"
+            f"❯ **Что вы получите**\n"
+            "• Привилегию на сервере \"Медиа\"\n"
+            f"• Роль в Discord <@&{MEDIA_ROLE_ID}>\n"
+            "• В привилегию \"MEDIA\" входит весь функционал привилегии \"ALASH\""
         ),
         color=discord.Color.from_rgb(180, 0, 0)
     )
-    embed.set_image(url=MEDIA_BANNER_URL)
-    await ctx.send(embed=embed, view=MediaMainView())
+
+    await ctx.send(embeds=[image_embed, text_embed], view=MediaMainView())
 
 
 bot.run(os.getenv("DISCORD_TOKEN"))
