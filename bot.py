@@ -1,5 +1,7 @@
 import os
 import asyncio
+import aiohttp
+import io
 import discord
 from discord.ext import commands
 from discord.ui import View, Select, Button, Modal, TextInput
@@ -441,14 +443,20 @@ class MyBot(commands.Bot):
 bot = MyBot()
 
 
+async def get_discord_file_from_url(url: str, filename: str):
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as resp:
+            if resp.status == 200:
+                data = await resp.read()
+                return discord.File(io.BytesIO(data), filename=filename)
+    return None
+
+
 @bot.command()
 async def send_girl_ticket(ctx):
-    # 1. Жоғарғы эмбед (тек баннер суреті)
-    image_embed = discord.Embed(color=discord.Color.from_rgb(255, 105, 180))
-    image_embed.set_image(url=GIRL_BANNER_URL)
-
-    # 2. Төменгі эмбед (мәтін)
-    text_embed = discord.Embed(
+    file = await get_discord_file_from_url(GIRL_BANNER_URL, "banner_girl.png")
+    
+    embed = discord.Embed(
         description=(
             "**❤️ Роль Девушка**\n\n"
             "• Нажмите кнопку ниже, чтобы создать тикет для верификации и получения роли Девушка\n\n"
@@ -461,17 +469,19 @@ async def send_girl_ticket(ctx):
         color=discord.Color.from_rgb(255, 105, 180)
     )
 
-    await ctx.send(embeds=[image_embed, text_embed], view=GirlTicketMainView())
+    if file:
+        embed.set_image(url="attachment://banner_girl.png")
+        await ctx.send(file=file, embed=embed, view=GirlTicketMainView())
+    else:
+        embed.set_image(url=GIRL_BANNER_URL)
+        await ctx.send(embed=embed, view=GirlTicketMainView())
 
 
 @bot.command()
 async def send_ticket(ctx):
-    # 1. Жоғарғы эмбед (Поддержка баннері)
-    image_embed = discord.Embed(color=discord.Color.from_rgb(67, 181, 129))
-    image_embed.set_image(url=MAIN_BANNER_URL)
+    file = await get_discord_file_from_url(MAIN_BANNER_URL, "banner.png")
 
-    # 2. Төменгі эмбед (мәтін)
-    text_embed = discord.Embed(
+    embed = discord.Embed(
         description=(
             "**Система поддержки ALASH PROJECT KZ**\n\n"
             "**Возникли вопросы, проблемы или нужна помощь? Опишите ситуацию**\n\n"
@@ -484,17 +494,19 @@ async def send_ticket(ctx):
         color=discord.Color.from_rgb(67, 181, 129)
     )
 
-    await ctx.send(embeds=[image_embed, text_embed], view=TicketMainView())
+    if file:
+        embed.set_image(url="attachment://banner.png")
+        await ctx.send(file=file, embed=embed, view=TicketMainView())
+    else:
+        embed.set_image(url=MAIN_BANNER_URL)
+        await ctx.send(embed=embed, view=TicketMainView())
 
 
 @bot.command()
 async def send_media(ctx):
-    # 1. Жоғарғы эмбед (Медиа баннері)
-    image_embed = discord.Embed(color=discord.Color.from_rgb(180, 0, 0))
-    image_embed.set_image(url=MEDIA_BANNER_URL)
+    file = await get_discord_file_from_url(MEDIA_BANNER_URL, "banner_media.png")
 
-    # 2. Төменгі эмбед (мәтін)
-    text_embed = discord.Embed(
+    embed = discord.Embed(
         description=(
             "• Наш проект готов к сотрудничеству с вами как с медиа игроком (TikTok стримы/видео).\n\n"
             "• Мы предлагаем партнерство, где ваша аудитория и активность помогают продвижению проекта.\n\n"
@@ -507,7 +519,12 @@ async def send_media(ctx):
         color=discord.Color.from_rgb(180, 0, 0)
     )
 
-    await ctx.send(embeds=[image_embed, text_embed], view=MediaMainView())
+    if file:
+        embed.set_image(url="attachment://banner_media.png")
+        await ctx.send(file=file, embed=embed, view=MediaMainView())
+    else:
+        embed.set_image(url=MEDIA_BANNER_URL)
+        await ctx.send(embed=embed, view=MediaMainView())
 
 
 bot.run(os.getenv("DISCORD_TOKEN"))
