@@ -88,6 +88,18 @@ async def send_log(guild: discord.Guild, channel_id: int, title: str, descriptio
 
 
 # --------------------------------------------------
+# СУРЕТТІ ЖҮКТЕП АЛУ ФУНКЦИЯСЫ
+# --------------------------------------------------
+async def get_discord_file_from_url(url: str, filename: str):
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as resp:
+            if resp.status == 200:
+                data = await resp.read()
+                return discord.File(io.BytesIO(data), filename=filename)
+    return None
+
+
+# --------------------------------------------------
 # 1. КНОПКИ УПРАВЛЕНИЯ ВНУТРИ ТИКЕТА
 # --------------------------------------------------
 
@@ -443,20 +455,22 @@ class MyBot(commands.Bot):
 bot = MyBot()
 
 
-async def get_discord_file_from_url(url: str, filename: str):
-    async with aiohttp.ClientSession() as session:
-        async with session.get(url) as resp:
-            if resp.status == 200:
-                data = await resp.read()
-                return discord.File(io.BytesIO(data), filename=filename)
-    return None
-
-
 @bot.command()
 async def send_girl_ticket(ctx):
     file = await get_discord_file_from_url(GIRL_BANNER_URL, "banner_girl.png")
-    
-    embed = discord.Embed(
+
+    # 1. СҮРӘТТЕ ЖІБЕРУ (ЖОҒАРЫДА)
+    if file:
+        img_embed = discord.Embed(color=discord.Color.from_rgb(255, 105, 180))
+        img_embed.set_image(url="attachment://banner_girl.png")
+        await ctx.send(file=file, embed=img_embed)
+    else:
+        img_embed = discord.Embed(color=discord.Color.from_rgb(255, 105, 180))
+        img_embed.set_image(url=GIRL_BANNER_URL)
+        await ctx.send(embed=img_embed)
+
+    # 2. МӘТІН ПЕН БАТЫРМАНЫ АСТЫНДА ЖЕКЕ ЖІБЕРУ
+    text_embed = discord.Embed(
         description=(
             "**❤️ Роль Девушка**\n\n"
             "• Нажмите кнопку ниже, чтобы создать тикет для верификации и получения роли Девушка\n\n"
@@ -468,20 +482,25 @@ async def send_girl_ticket(ctx):
         ),
         color=discord.Color.from_rgb(255, 105, 180)
     )
-
-    if file:
-        embed.set_image(url="attachment://banner_girl.png")
-        await ctx.send(file=file, embed=embed, view=GirlTicketMainView())
-    else:
-        embed.set_image(url=GIRL_BANNER_URL)
-        await ctx.send(embed=embed, view=GirlTicketMainView())
+    await ctx.send(embed=text_embed, view=GirlTicketMainView())
 
 
 @bot.command()
 async def send_ticket(ctx):
     file = await get_discord_file_from_url(MAIN_BANNER_URL, "banner.png")
 
-    embed = discord.Embed(
+    # 1. СҮРӘТТЕ ЖІБЕРУ (ЖОҒАРЫДА)
+    if file:
+        img_embed = discord.Embed(color=discord.Color.from_rgb(67, 181, 129))
+        img_embed.set_image(url="attachment://banner.png")
+        await ctx.send(file=file, embed=img_embed)
+    else:
+        img_embed = discord.Embed(color=discord.Color.from_rgb(67, 181, 129))
+        img_embed.set_image(url=MAIN_BANNER_URL)
+        await ctx.send(embed=img_embed)
+
+    # 2. МӘТІН ПЕН БАТЫРМАНЫ АСТЫНДА ЖЕКЕ ЖІБЕРУ
+    text_embed = discord.Embed(
         description=(
             "**Система поддержки ALASH PROJECT KZ**\n\n"
             "**Возникли вопросы, проблемы или нужна помощь? Опишите ситуацию**\n\n"
@@ -493,20 +512,25 @@ async def send_ticket(ctx):
         ),
         color=discord.Color.from_rgb(67, 181, 129)
     )
-
-    if file:
-        embed.set_image(url="attachment://banner.png")
-        await ctx.send(file=file, embed=embed, view=TicketMainView())
-    else:
-        embed.set_image(url=MAIN_BANNER_URL)
-        await ctx.send(embed=embed, view=TicketMainView())
+    await ctx.send(embed=text_embed, view=TicketMainView())
 
 
 @bot.command()
 async def send_media(ctx):
     file = await get_discord_file_from_url(MEDIA_BANNER_URL, "banner_media.png")
 
-    embed = discord.Embed(
+    # 1. СҮРӘТТЕ ЖІБЕРУ (ЖОҒАРЫДА)
+    if file:
+        img_embed = discord.Embed(color=discord.Color.from_rgb(180, 0, 0))
+        img_embed.set_image(url="attachment://banner_media.png")
+        await ctx.send(file=file, embed=img_embed)
+    else:
+        img_embed = discord.Embed(color=discord.Color.from_rgb(180, 0, 0))
+        img_embed.set_image(url=MEDIA_BANNER_URL)
+        await ctx.send(embed=img_embed)
+
+    # 2. МӘТІН ПЕН БАТЫРМАНЫ АСТЫНДА ЖЕКЕ ЖІБЕРУ
+    text_embed = discord.Embed(
         description=(
             "• Наш проект готов к сотрудничеству с вами как с медиа игроком (TikTok стримы/видео).\n\n"
             "• Мы предлагаем партнерство, где ваша аудитория и активность помогают продвижению проекта.\n\n"
@@ -518,13 +542,7 @@ async def send_media(ctx):
         ),
         color=discord.Color.from_rgb(180, 0, 0)
     )
-
-    if file:
-        embed.set_image(url="attachment://banner_media.png")
-        await ctx.send(file=file, embed=embed, view=MediaMainView())
-    else:
-        embed.set_image(url=MEDIA_BANNER_URL)
-        await ctx.send(embed=embed, view=MediaMainView())
+    await ctx.send(embed=text_embed, view=MediaMainView())
 
 
 bot.run(os.getenv("DISCORD_TOKEN"))
