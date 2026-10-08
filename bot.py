@@ -6,7 +6,7 @@ from discord.ui import View, Select, Button, Modal, TextInput
 from flask import Flask
 from threading import Thread
 
-# Web-server (Render'де бот 24/7 иштеп турушу үчүн)
+# Web-server (Render-де бот 24/7 жұмыс істеп тұруы үшін)
 app = Flask('')
 
 @app.route('/')
@@ -27,14 +27,14 @@ intents.message_content = True
 intents.members = True
 
 # --------------------------------------------------
-# БАННЕРЛЕРДИН ШИЛТЕМЕЛЕРИ (URL)
+# БАННЕРЛЕРДІҢ СІЛТЕМЕЛЕРІ (URL)
 # --------------------------------------------------
 MAIN_BANNER_URL = "https://multibot.pro/api/embeds/images/g4mmec3lwfcrwi4l"
 GIRL_BANNER_URL = "https://multibot.pro/api/embeds/images/9hvm8ltfsis07owb"
 MEDIA_BANNER_URL = "https://multibot.pro/api/embeds/images/nfmpvssumgp3km0o"
 
 # --------------------------------------------------
-# РОЛДОРДУН ID'ЛЕРИ
+# ИДЕНТИФИКАТОРЫ РОЛЕЙ
 # --------------------------------------------------
 
 STAFF_ROLE_IDS = [
@@ -57,7 +57,7 @@ MEDIA_STAFF_ROLE_IDS = [
 ]
 
 # --------------------------------------------------
-# ЛОГ КАНАЛДАРДЫН ID'ЛЕРИ
+# ИДЕНТИФИКАТОРЫ КАНАЛОВ ЛОГОВ
 # --------------------------------------------------
 TICKET_LOG_CHANNEL_ID = 1530913548761436361
 GIRL_LOG_CHANNEL_ID = 1557062204770230333
@@ -67,7 +67,7 @@ MEDIA_ROLE_ID = 1557044911440928961
 
 
 # --------------------------------------------------
-# ЛОГ ЖӨНӨТҮҮ ФУНКЦИЯСЫ
+# ФУНКЦИЯ ОТПРАВКИ ЛОГОВ
 # --------------------------------------------------
 async def send_log(guild: discord.Guild, channel_id: int, title: str, description: str, color: discord.Color, fields: dict = None):
     log_channel = guild.get_channel(channel_id)
@@ -86,7 +86,7 @@ async def send_log(guild: discord.Guild, channel_id: int, title: str, descriptio
 
 
 # --------------------------------------------------
-# 1. ТИКЕТ ИЧИНДЕГИ БАШКАРУУ БАСКЫЧТАРЫ
+# 1. КНОПКИ УПРАВЛЕНИЯ ВНУТРИ ТИКЕТА
 # --------------------------------------------------
 
 class TicketControlView(View):
@@ -153,7 +153,7 @@ class TicketControlView(View):
 
 
 # --------------------------------------------------
-# 2. КЫЗДАР ҮЧҮН ТИКЕТ
+# 2. ТИКЕТ ДЛЯ ДЕВУШЕК
 # --------------------------------------------------
 
 class GirlTicketMainView(View):
@@ -228,7 +228,7 @@ class GirlTicketMainView(View):
 
 
 # --------------------------------------------------
-# 3. ЖАЛПЫ ТИКЕТТЕР
+# 3. ОБЩИЕ ТИКЕТЫ
 # --------------------------------------------------
 
 class TicketSelectView(View):
@@ -425,7 +425,7 @@ class MediaMainView(View):
 
 
 # --------------------------------------------------
-# 5. ИНТЕРФЕЙСТИ ЖӨНӨТҮҮ КОМАНДАЛАРЫ
+# 5. КОМАНДЫ ДЛЯ ОТПРАВКИ ИНТЕРФЕЙСА
 # --------------------------------------------------
 
 class MyBot(commands.Bot):
@@ -443,11 +443,11 @@ bot = MyBot()
 
 @bot.command()
 async def send_girl_ticket(ctx):
-    # 1. Сүрөт гана жайгашкан үстүңкү Эмбед
+    # 1. Жоғарғы эмбед (тек баннер суреті)
     image_embed = discord.Embed(color=discord.Color.from_rgb(255, 105, 180))
     image_embed.set_image(url=GIRL_BANNER_URL)
 
-    # 2. Текст жана баскыч жайгашкан ылдыйкы Эмбед
+    # 2. Төменгі эмбед (мәтін)
     text_embed = discord.Embed(
         description=(
             "**❤️ Роль Девушка**\n\n"
@@ -466,11 +466,11 @@ async def send_girl_ticket(ctx):
 
 @bot.command()
 async def send_ticket(ctx):
-    # 1. Сүрөт гана жайгашкан үстүңкү Эмбед
+    # 1. Жоғарғы эмбед (Поддержка баннері)
     image_embed = discord.Embed(color=discord.Color.from_rgb(67, 181, 129))
     image_embed.set_image(url=MAIN_BANNER_URL)
 
-    # 2. Текст жана баскыч жайгашкан ылдыйкы Эмбед
+    # 2. Төменгі эмбед (мәтін)
     text_embed = discord.Embed(
         description=(
             "**Система поддержки ALASH PROJECT KZ**\n\n"
@@ -489,11 +489,11 @@ async def send_ticket(ctx):
 
 @bot.command()
 async def send_media(ctx):
-    # 1. Сүрөт гана жайгашкан үстүңкү Эмбед
+    # 1. Жоғарғы эмбед (Медиа баннері)
     image_embed = discord.Embed(color=discord.Color.from_rgb(180, 0, 0))
     image_embed.set_image(url=MEDIA_BANNER_URL)
 
-    # 2. Текст жана баскыч жайгашкан ылдыйкы Эмбед
+    # 2. Төменгі эмбед (мәтін)
     text_embed = discord.Embed(
         description=(
             "• Наш проект готов к сотрудничеству с вами как с медиа игроком (TikTok стримы/видео).\n\n"
