@@ -8,7 +8,7 @@ from discord.ui import View, Select, Button, Modal, TextInput
 from flask import Flask
 from threading import Thread
 
-# Web-server (Render-де бот 24/7 иштеп турушу үчүн)
+# Web-server (для поддержания работы 24/7 на Render)
 app = Flask('')
 
 @app.route('/')
@@ -29,14 +29,14 @@ intents.message_content = True
 intents.members = True
 
 # --------------------------------------------------
-# БАННЕРЛЕРДИН ШИЛТЕМЕЛЕРИ (URL)
+# ССЫЛКИ НА БАННЕРЫ (URL)
 # --------------------------------------------------
 MAIN_BANNER_URL = "https://multibot.pro/api/embeds/images/g4mmec3lwfcrwi4l"
 GIRL_BANNER_URL = "https://media.discordapp.net/attachments/1544309714962227230/1557815971660435456/banner_girl.png?ex=6ac92cae&is=6ac7db2e&hm=250e0baedfe61fc5baff21e59e0e6bd61f5e494d88ade315be12b6e3c199c916&=&format=webp&quality=lossless&width=2048&height=729"
 MEDIA_BANNER_URL = "https://multibot.pro/api/embeds/images/nfmpvssumgp3km0o"
 
 # --------------------------------------------------
-# РОЛДОРДУН ID'ЛЕРИ (ЖАҢЫРТЫЛДЫ)
+# ИДЕНТИФИКАТОРЫ РОЛЕЙ
 # --------------------------------------------------
 
 STAFF_ROLE_IDS = [
@@ -61,7 +61,7 @@ MEDIA_STAFF_ROLE_IDS = [
 ]
 
 # --------------------------------------------------
-# ЛОГ КАНАЛДАРДЫН ID'ЛЕРИ (ЖАҢЫРТЫЛДЫ)
+# ИДЕНТИФИКАТОРЫ КАНАЛОВ ЛОГОВ
 # --------------------------------------------------
 TICKET_LOG_CHANNEL_ID = 1530913548761436361
 GIRL_LOG_CHANNEL_ID = 1557062204770230333
@@ -71,7 +71,7 @@ MEDIA_ROLE_ID = 1530924449912586351
 
 
 # --------------------------------------------------
-# ЛОГ ЖӨНӨТҮҮ ФУНКЦИЯСЫ
+# ФУНКЦИЯ ОТПРАВКИ ЛОГОВ
 # --------------------------------------------------
 async def send_log(guild: discord.Guild, channel_id: int, title: str, description: str, color: discord.Color, fields: dict = None):
     log_channel = guild.get_channel(channel_id)
@@ -90,7 +90,7 @@ async def send_log(guild: discord.Guild, channel_id: int, title: str, descriptio
 
 
 # --------------------------------------------------
-# СҮРӨТТҮ ЖҮКТӨП АЛУУ ФУНКЦИЯСЫ
+# ФУНКЦИЯ СКАЧИВАНИЯ КАРТИНКИ
 # --------------------------------------------------
 async def get_discord_file_from_url(url: str, filename: str):
     async with aiohttp.ClientSession() as session:
@@ -102,7 +102,7 @@ async def get_discord_file_from_url(url: str, filename: str):
 
 
 # --------------------------------------------------
-# 1. ТИКЕТ ИЧИНДЕГИ БАШКАРУУ БАСКЫЧТАРЫ
+# 1. КНОПКИ УПРАВЛЕНИЯ ВНУТРИ ТИКЕТА
 # --------------------------------------------------
 
 class TicketControlView(View):
@@ -169,7 +169,7 @@ class TicketControlView(View):
 
 
 # --------------------------------------------------
-# 2. КЫЗДАР ҮЧҮН ТИКЕТ
+# 2. ТИКЕТ ДЛЯ ДЕВУШЕК
 # --------------------------------------------------
 
 class GirlTicketMainView(View):
@@ -179,7 +179,7 @@ class GirlTicketMainView(View):
     @discord.ui.button(
         label="Получить роль девушка",
         emoji="🌸",
-        style=discord.ButtonStyle.success,
+        style=discord.ButtonStyle.secondary,  # Серый цвет
         custom_id="open_girl_ticket_btn_alash"
     )
     async def open_girl_ticket(self, interaction: discord.Interaction, button: Button):
@@ -244,7 +244,7 @@ class GirlTicketMainView(View):
 
 
 # --------------------------------------------------
-# 3. ЖАЛПЫ ТИКЕТТЕР
+# 3. ОБЩИЕ ТИКЕТЫ
 # --------------------------------------------------
 
 class TicketSelectView(View):
@@ -329,7 +329,7 @@ class TicketMainView(View):
 
     @discord.ui.button(
         label="Открыть тикет",
-        style=discord.ButtonStyle.success,
+        style=discord.ButtonStyle.secondary,  # Серый цвет
         custom_id="open_ticket_main_btn_alash"
     )
     async def open_ticket(self, interaction: discord.Interaction, button: Button):
@@ -437,7 +437,7 @@ class MediaMainView(View):
 
     @discord.ui.button(
         label="Подать заявку",
-        style=discord.ButtonStyle.danger,
+        style=discord.ButtonStyle.secondary,  # Серый цвет
         custom_id="open_media_modal_btn_alash"
     )
     async def apply_media_button(self, interaction: discord.Interaction, button: Button):
@@ -445,7 +445,7 @@ class MediaMainView(View):
 
 
 # --------------------------------------------------
-# 5. ИНТЕРФЕЙСТИ ЖӨНӨТҮҮ КОМАНДАЛАРЫ
+# 5. КОМАНДЫ ДЛЯ ОТПРАВКИ ИНТЕРФЕЙСА
 # --------------------------------------------------
 
 class MyBot(commands.Bot):
