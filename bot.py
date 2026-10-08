@@ -442,11 +442,11 @@ bot = MyBot()
 
 @bot.command()
 async def send_girl_ticket(ctx):
-    # 1. Тек баннер суреті бар жоғарғы Эмбед
+    # 1. Үстүңкү баннер сүрөтү бар эмбед
     image_embed = discord.Embed(color=discord.Color.from_rgb(255, 105, 180))
     image_embed.set_image(url=GIRL_BANNER_URL)
 
-    # 2. Төменгі мәтіні бар Эмбед
+    # 2. Төмөнкү текст жазылган эмбед
     text_embed = discord.Embed(
         description=(
             "**❤️ Роль Девушка**\n\n"
@@ -460,6 +460,7 @@ async def send_girl_ticket(ctx):
         color=discord.Color.from_rgb(255, 105, 180)
     )
 
+    # Эки эмбедди тең бир билдирүү менен жөнөтүү
     await ctx.send(embeds=[image_embed, text_embed], view=GirlTicketMainView())
 
 
