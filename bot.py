@@ -8,7 +8,7 @@ from discord.ui import View, Select, Button, Modal, TextInput
 from flask import Flask
 from threading import Thread
 
-# Web-server (Render-де бот 24/7 жұмыс істеп тұруы үшін)
+# Web-server (Render-де бот 24/7 иштеп турушу үчүн)
 app = Flask('')
 
 @app.route('/')
@@ -29,14 +29,14 @@ intents.message_content = True
 intents.members = True
 
 # --------------------------------------------------
-# БАННЕРЛЕРДІҢ СІЛТЕМЕЛЕРІ (URL)
+# БАННЕРЛЕРДИН ШИЛТЕМЕЛЕРИ (URL)
 # --------------------------------------------------
 MAIN_BANNER_URL = "https://multibot.pro/api/embeds/images/g4mmec3lwfcrwi4l"
 GIRL_BANNER_URL = "https://media.discordapp.net/attachments/1544309714962227230/1557815971660435456/banner_girl.png?ex=6ac92cae&is=6ac7db2e&hm=250e0baedfe61fc5baff21e59e0e6bd61f5e494d88ade315be12b6e3c199c916&=&format=webp&quality=lossless&width=2048&height=729"
 MEDIA_BANNER_URL = "https://multibot.pro/api/embeds/images/nfmpvssumgp3km0o"
 
 # --------------------------------------------------
-# ИДЕНТИФИКАТОРЫ РОЛЕЙ
+# РОЛДОРДУН ID'ЛЕРИ (ЖАҢЫРТЫЛДЫ)
 # --------------------------------------------------
 
 STAFF_ROLE_IDS = [
@@ -61,7 +61,7 @@ MEDIA_STAFF_ROLE_IDS = [
 ]
 
 # --------------------------------------------------
-# ИДЕНТИФИКАТОРЫ КАНАЛОВ ЛОГОВ
+# ЛОГ КАНАЛДАРДЫН ID'ЛЕРИ (ЖАҢЫРТЫЛДЫ)
 # --------------------------------------------------
 TICKET_LOG_CHANNEL_ID = 1530913548761436361
 GIRL_LOG_CHANNEL_ID = 1557062204770230333
@@ -71,7 +71,7 @@ MEDIA_ROLE_ID = 1530924449912586351
 
 
 # --------------------------------------------------
-# ФУНКЦИЯ ОТПРАВКИ ЛОГОВ
+# ЛОГ ЖӨНӨТҮҮ ФУНКЦИЯСЫ
 # --------------------------------------------------
 async def send_log(guild: discord.Guild, channel_id: int, title: str, description: str, color: discord.Color, fields: dict = None):
     log_channel = guild.get_channel(channel_id)
@@ -90,7 +90,7 @@ async def send_log(guild: discord.Guild, channel_id: int, title: str, descriptio
 
 
 # --------------------------------------------------
-# СУРЕТТІ ЖҮКТЕП АЛУ ФУНКЦИЯСЫ
+# СҮРӨТТҮ ЖҮКТӨП АЛУУ ФУНКЦИЯСЫ
 # --------------------------------------------------
 async def get_discord_file_from_url(url: str, filename: str):
     async with aiohttp.ClientSession() as session:
@@ -102,7 +102,7 @@ async def get_discord_file_from_url(url: str, filename: str):
 
 
 # --------------------------------------------------
-# 1. КНОПКИ УПРАВЛЕНИЯ ВНУТРИ ТИКЕТА
+# 1. ТИКЕТ ИЧИНДЕГИ БАШКАРУУ БАСКЫЧТАРЫ
 # --------------------------------------------------
 
 class TicketControlView(View):
@@ -169,7 +169,7 @@ class TicketControlView(View):
 
 
 # --------------------------------------------------
-# 2. ТИКЕТ ДЛЯ ДЕВУШЕК
+# 2. КЫЗДАР ҮЧҮН ТИКЕТ
 # --------------------------------------------------
 
 class GirlTicketMainView(View):
@@ -179,7 +179,7 @@ class GirlTicketMainView(View):
     @discord.ui.button(
         label="Получить роль девушка",
         emoji="🌸",
-        style=discord.ButtonStyle.secondary,
+        style=discord.ButtonStyle.success,
         custom_id="open_girl_ticket_btn_alash"
     )
     async def open_girl_ticket(self, interaction: discord.Interaction, button: Button):
@@ -244,7 +244,7 @@ class GirlTicketMainView(View):
 
 
 # --------------------------------------------------
-# 3. ОБЩИЕ ТИКЕТЫ
+# 3. ЖАЛПЫ ТИКЕТТЕР
 # --------------------------------------------------
 
 class TicketSelectView(View):
@@ -300,7 +300,7 @@ class TicketSelectView(View):
                 "**Система поддержки ALASH PROJECT KZ**\n\n"
                 "**Возникли вопросы, проблемы или нужна помощь? Опишите ситуацию**"
             ),
-            color=discord.Color.from_rgb(67, 181, 129)
+            color=discord.Color.from_rgb(57, 255, 20)
         )
         embed.add_field(name="• Пользователь", value=user.mention, inline=False)
         embed.add_field(name="• Категория", value=f"{category_selected}", inline=False)
@@ -327,7 +327,11 @@ class TicketMainView(View):
     def __init__(self):
         super().__init__(timeout=None)
 
-    @discord.ui.button(label="Открыть тикет", style=discord.ButtonStyle.primary, custom_id="open_ticket_main_btn_alash")
+    @discord.ui.button(
+        label="Открыть тикет",
+        style=discord.ButtonStyle.success,
+        custom_id="open_ticket_main_btn_alash"
+    )
     async def open_ticket(self, interaction: discord.Interaction, button: Button):
         await interaction.response.send_message(
             "Выберите нужную категорию для открытия тикета:",
@@ -433,7 +437,7 @@ class MediaMainView(View):
 
     @discord.ui.button(
         label="Подать заявку",
-        style=discord.ButtonStyle.secondary,
+        style=discord.ButtonStyle.danger,
         custom_id="open_media_modal_btn_alash"
     )
     async def apply_media_button(self, interaction: discord.Interaction, button: Button):
@@ -441,7 +445,7 @@ class MediaMainView(View):
 
 
 # --------------------------------------------------
-# 5. КОМАНДЫ ДЛЯ ОТПРАВКИ ИНТЕРФЕЙСА
+# 5. ИНТЕРФЕЙСТИ ЖӨНӨТҮҮ КОМАНДАЛАРЫ
 # --------------------------------------------------
 
 class MyBot(commands.Bot):
@@ -490,11 +494,11 @@ async def send_ticket(ctx):
     file = await get_discord_file_from_url(MAIN_BANNER_URL, "banner.png")
 
     if file:
-        img_embed = discord.Embed(color=discord.Color.from_rgb(67, 181, 129))
+        img_embed = discord.Embed(color=discord.Color.from_rgb(57, 255, 20))
         img_embed.set_image(url="attachment://banner.png")
         await ctx.send(file=file, embed=img_embed)
     else:
-        img_embed = discord.Embed(color=discord.Color.from_rgb(67, 181, 129))
+        img_embed = discord.Embed(color=discord.Color.from_rgb(57, 255, 20))
         img_embed.set_image(url=MAIN_BANNER_URL)
         await ctx.send(embed=img_embed)
 
@@ -508,7 +512,7 @@ async def send_ticket(ctx):
             "• Проблемы с верификацией.\n"
             "• Ошибки, баги и технические неполадки."
         ),
-        color=discord.Color.from_rgb(67, 181, 129)
+        color=discord.Color.from_rgb(57, 255, 20)
     )
     await ctx.send(embed=text_embed, view=TicketMainView())
 
@@ -517,7 +521,6 @@ async def send_ticket(ctx):
 async def send_media(ctx):
     file = await get_discord_file_from_url(MEDIA_BANNER_URL, "banner_media.png")
 
-    # 1. МЕДИА БАННЕРИ (ЖОҒАРЫДА БӨЛЕК)
     if file:
         img_embed = discord.Embed(color=discord.Color.from_rgb(180, 0, 0))
         img_embed.set_image(url="attachment://banner_media.png")
@@ -527,7 +530,6 @@ async def send_media(ctx):
         img_embed.set_image(url=MEDIA_BANNER_URL)
         await ctx.send(embed=img_embed)
 
-    # 2. МЕДИА ТЕКСТІ (СКРИНШОТТАҒЫДАЙ ДӘЛ ОСОЛАЙ, АСТЫНДА БӨЛЕК)
     text_embed = discord.Embed(
         description=(
             "• Наш проект готов к сотрудничеству с вами как с медиа игроком (TikTok стримы/видео).\n\n"
