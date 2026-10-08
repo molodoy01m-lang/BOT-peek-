@@ -55,7 +55,9 @@ GIRL_STAFF_ROLE_IDS = [
 ]
 
 MEDIA_STAFF_ROLE_IDS = [
-    1557002520696463431
+    1530888828246556753,
+    1532745811778207985,
+    1530886657530925256
 ]
 
 # --------------------------------------------------
@@ -63,9 +65,9 @@ MEDIA_STAFF_ROLE_IDS = [
 # --------------------------------------------------
 TICKET_LOG_CHANNEL_ID = 1530913548761436361
 GIRL_LOG_CHANNEL_ID = 1557062204770230333
-MEDIA_LOG_CHANNEL_ID = 1557045586820333649
+MEDIA_LOG_CHANNEL_ID = 1557818240221323414
 
-MEDIA_ROLE_ID = 1557044911440928961
+MEDIA_ROLE_ID = 1530924449912586351
 
 
 # --------------------------------------------------
@@ -459,7 +461,6 @@ bot = MyBot()
 async def send_girl_ticket(ctx):
     file = await get_discord_file_from_url(GIRL_BANNER_URL, "banner_girl.png")
 
-    # 1. СҮРӘТТЕ ЖІБЕРУ (ЖОҒАРЫДА)
     if file:
         img_embed = discord.Embed(color=discord.Color.from_rgb(255, 105, 180))
         img_embed.set_image(url="attachment://banner_girl.png")
@@ -469,7 +470,6 @@ async def send_girl_ticket(ctx):
         img_embed.set_image(url=GIRL_BANNER_URL)
         await ctx.send(embed=img_embed)
 
-    # 2. МӘТІН ПЕН БАТЫРМАНЫ АСТЫНДА ЖЕКЕ ЖІБЕРУ
     text_embed = discord.Embed(
         description=(
             "**❤️ Роль Девушка**\n\n"
@@ -489,7 +489,6 @@ async def send_girl_ticket(ctx):
 async def send_ticket(ctx):
     file = await get_discord_file_from_url(MAIN_BANNER_URL, "banner.png")
 
-    # 1. СҮРӘТТЕ ЖІБЕРУ (ЖОҒАРЫДА)
     if file:
         img_embed = discord.Embed(color=discord.Color.from_rgb(67, 181, 129))
         img_embed.set_image(url="attachment://banner.png")
@@ -499,7 +498,6 @@ async def send_ticket(ctx):
         img_embed.set_image(url=MAIN_BANNER_URL)
         await ctx.send(embed=img_embed)
 
-    # 2. МӘТІН ПЕН БАТЫРМАНЫ АСТЫНДА ЖЕКЕ ЖІБЕРУ
     text_embed = discord.Embed(
         description=(
             "**Система поддержки ALASH PROJECT KZ**\n\n"
@@ -519,7 +517,7 @@ async def send_ticket(ctx):
 async def send_media(ctx):
     file = await get_discord_file_from_url(MEDIA_BANNER_URL, "banner_media.png")
 
-    # 1. СҮРӘТТЕ ЖІБЕРУ (ЖОҒАРЫДА)
+    # 1. МЕДИА БАННЕРИ (ЖОҒАРЫДА БӨЛЕК)
     if file:
         img_embed = discord.Embed(color=discord.Color.from_rgb(180, 0, 0))
         img_embed.set_image(url="attachment://banner_media.png")
@@ -529,7 +527,7 @@ async def send_media(ctx):
         img_embed.set_image(url=MEDIA_BANNER_URL)
         await ctx.send(embed=img_embed)
 
-    # 2. МӘТІН ПЕН БАТЫРМАНЫ АСТЫНДА ЖЕКЕ ЖІБЕРУ
+    # 2. МЕДИА ТЕКСТІ (СКРИНШОТТАҒЫДАЙ ДӘЛ ОСОЛАЙ, АСТЫНДА БӨЛЕК)
     text_embed = discord.Embed(
         description=(
             "• Наш проект готов к сотрудничеству с вами как с медиа игроком (TikTok стримы/видео).\n\n"
