@@ -729,7 +729,7 @@ async def on_voice_state_update(member, before, after):
 @bot.command()
 async def send_verification(ctx):
     embed = discord.Embed(
-        title="<:15770animatedarrowyellow:1503049767016595586> FACEIT Верификация",
+        title="<a:15770animatedarrowyellow:1503049767016595586> FACEIT Верификация",
         description=(
             "Нажмите кнопку ниже, чтобы пройти верификацию.\n\n"
             "<a:a_pink_dot:1503133833548271646> Проверка Discord\n"
