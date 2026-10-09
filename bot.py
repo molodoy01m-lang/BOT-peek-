@@ -48,9 +48,6 @@ MAIN_BANNER_URL = "https://multibot.pro/api/embeds/images/g4mmec3lwfcrwi4l"
 GIRL_BANNER_URL = "https://media.discordapp.net/attachments/1544309714962227230/1557815971660435456/banner_girl.png?ex=6ac92cae&is=6ac7db2e&hm=250e0baedfe61fc5baff21e59e0e6bd61f5e494d88ade315be12b6e3c199c916&=&format=webp&quality=lossless&width=2048&height=729"
 MEDIA_BANNER_URL = "https://multibot.pro/api/embeds/images/nfmpvssumgp3km0o"
 
-# Приветственный генератор карточек (аватар + имя)
-WELCOME_CARD_API = "https://multibot.pro/api/embeds/images/g4mmec3lwfcrwi4l"
-
 # --------------------------------------------------
 # РӨЛДЕРДІҢ ID'ЛЕРІ
 # --------------------------------------------------
@@ -659,7 +656,7 @@ bot = MyBot()
 
 
 # --------------------------------------------------
-# ДОБРО ПОЖАЛОВАТЬ (ДИНАМИКАЛЫҚ КАРТОЧКА АВАТАРКАМЕН)
+# ДОБРО ПОЖАЛОВАТЬ (КАРТОЧКА КАК НА СКРИНШОТЕ)
 # --------------------------------------------------
 
 @bot.event
@@ -675,11 +672,11 @@ async def on_member_join(member):
     if welcome_channel:
         msg_content = f"Добро пожаловать на сервер, {member.mention}!"
         
-        # Дәл скриншоттағыдай қолданушының аватаркасын қосып шығаратын сілтеме
-        card_url = f"{WELCOME_CARD_API}?avatar={member.display_avatar.url}&name={member.name}"
+        # Дәл скриншоттағы стикер/карточка сілтемесі
+        banner_url = f"https://multibot.pro/api/embeds/images/g4mmec3lwfcrwi4l?avatar={member.display_avatar.url}&name={member.name}"
         
         embed = discord.Embed(color=discord.Color.from_rgb(255, 50, 50))
-        embed.set_image(url=card_url)
+        embed.set_image(url=banner_url)
         
         await welcome_channel.send(content=msg_content, embed=embed)
 
