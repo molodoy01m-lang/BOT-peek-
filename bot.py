@@ -738,7 +738,7 @@ async def send_verification(ctx):
             "<a:a_pink_dot:1503133833548271646> Определение FACEIT Level 1–10\n"
             "<a:a_pink_dot:1503133833548271646> Защита от повторной привязки аккаунта\n\n"
             "После успешной проверки бот автоматически выдаст роль верификации и роль вашего FACEIT Level.\n"
-            "<:931764reddrippingglowingcrown:1503133842360565811> **ALASH PROJECT KZ**"
+            "**ALASH PROJECT KZ**"
         ),
         color=discord.Color.blue()
     )
