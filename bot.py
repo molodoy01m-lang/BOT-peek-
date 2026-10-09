@@ -44,7 +44,6 @@ verified_users = {}
 # --------------------------------------------------
 # БАННЕРЛЕРДІҢ СІЛТЕМЕЛЕРІ (URL)
 # --------------------------------------------------
-TICKET_BANNER_URL = "https://multibot.pro/api/embeds/images/g4mmec3lwfcrwi4l"
 GIRL_BANNER_URL = "https://media.discordapp.net/attachments/1544309714962227230/1557815971660435456/banner_girl.png?ex=6ac92cae&is=6ac7db2e&hm=250e0baedfe61fc5baff21e59e0e6bd61f5e494d88ade315be12b6e3c199c916&=&format=webp&quality=lossless&width=2048&height=729"
 MEDIA_BANNER_URL = "https://multibot.pro/api/embeds/images/nfmpvssumgp3km0o"
 
@@ -671,14 +670,11 @@ async def on_member_join(member):
     welcome_channel = member.guild.get_channel(WELCOME_CHANNEL_ID)
     if welcome_channel:
         msg_content = f"Приветствую тебя в нашем дискорд канале, {member.mention}!"
-        
-        # Скриншоттағы стильдi қолдана отырып, аватарканы үлкен сурет (image) етіп шығарамыз
         embed = discord.Embed(
             description=f"Добро пожаловать на сервер, {member.mention}!",
             color=discord.Color.from_rgb(255, 50, 50)
         )
         embed.set_image(url=member.display_avatar.url)
-        
         await welcome_channel.send(content=msg_content, embed=embed)
 
 
@@ -733,16 +729,16 @@ async def on_voice_state_update(member, before, after):
 @bot.command()
 async def send_verification(ctx):
     embed = discord.Embed(
-        title="🛡️ FACEIT Верификация",
+        title="<:15770animatedarrowyellow:1503049767016595586> FACEIT Верификация",
         description=(
             "Нажмите кнопку ниже, чтобы пройти верификацию.\n\n"
-            "• Проверка Discord\n"
-            "• Проверка профиля FACEIT\n"
-            "• Проверка привязанного Steam для CS2\n"
-            "• Определение FACEIT Level 1–10\n"
-            "• Защита от повторной привязки аккаунта\n\n"
+            "<a:a_pink_dot:1503133833548271646> Проверка Discord\n"
+            "<a:a_pink_dot:1503133833548271646> Проверка профиля FACEIT\n"
+            "<a:a_pink_dot:1503133833548271646> Проверка привязанного Steam для CS2\n"
+            "<a:a_pink_dot:1503133833548271646> Определение FACEIT Level 1–10\n"
+            "<a:a_pink_dot:1503133833548271646> Защита от повторной привязки аккаунта\n\n"
             "После успешной проверки бот автоматически выдаст роль верификации и роль вашего FACEIT Level.\n"
-            "ALASH PROJECT KZ"
+            "<:931764reddrippingglowingcrown:1503133842360565811> **ALASH PROJECT KZ**"
         ),
         color=discord.Color.blue()
     )
@@ -802,14 +798,14 @@ async def send_girl_ticket(ctx):
 
 @bot.command()
 async def send_ticket(ctx):
-    file = await get_discord_file_from_url(TICKET_BANNER_URL, "banner.png")
+    file = await get_discord_file_from_url("https://multibot.pro/api/embeds/images/g4mmec3lwfcrwi4l", "banner.png")
     if file:
         img_embed = discord.Embed(color=discord.Color.from_rgb(57, 255, 20))
         img_embed.set_image(url="attachment://banner.png")
         await ctx.send(file=file, embed=img_embed)
     else:
         img_embed = discord.Embed(color=discord.Color.from_rgb(57, 255, 20))
-        img_embed.set_image(url=TICKET_BANNER_URL)
+        img_embed.set_image(url="https://multibot.pro/api/embeds/images/g4mmec3lwfcrwi4l")
         await ctx.send(embed=img_embed)
 
     text_embed = discord.Embed(
