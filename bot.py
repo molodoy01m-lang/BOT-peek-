@@ -39,6 +39,11 @@ LEVEL_CHANNEL_ID = 1498243470513405992
 user_levels = {}
 verified_users = {}
 
+# Кландарды сақтайтын жады (База данных в памяти)
+# Формат: {user_id: {"name": "Клан аты", "tag": "ТЕГ", "owner": user_id, "members": [user_id]}}
+clans_db = {}
+user_clan_mapping = {} # Қай қолданушы қай кланда екенін сақтайды
+
 GIRL_BANNER_URL = "https://media.discordapp.net/attachments/1544309714962227230/1557815971660435456/banner_girl.png?ex=6ac92cae&is=6ac7db2e&hm=250e0baedfe61fc5baff21e59e0e6bd61f5e494d88ade315be12b6e3c199c916&=&format=webp&quality=lossless&width=2048&height=729"
 MEDIA_BANNER_URL = "https://multibot.pro/api/embeds/images/nfmpvssumgp3km0o"
 TICKET_BANNER_URL = "https://multibot.pro/api/embeds/images/g4mmec3lwfcrwi4l"
@@ -374,28 +379,75 @@ class MediaMainView(View):
         await interaction.response.send_modal(MediaApplicationModal())
 
 
-# --- КЛАНДАР ЖҮЙЕСІ ---
+# --- КЛАНДАР ЖҮЙЕСІ (Толық жұмыс істейтін базасымен) ---
 class CreateClanModal(Modal, title="Создание клана"):
     clan_name = TextInput(label="Название клана", placeholder="Введите название...", required=True, max_length=50)
     clan_tag = TextInput(label="Тег клана", placeholder="Введите тег...", required=True, max_length=10)
 
     async def on_submit(self, interaction: discord.Interaction):
-        await interaction.response.send_message(f"✅ Клан **{self.clan_name.value}** с тегом **[{self.clan_tag.value}]** успешно создан!", ephemeral=True)
+        user_id = interaction.user.id
+        
+        # Егер қолданушының қазірδη кланы болса
+        if user_id in user_clan_mapping:
+            return await interaction.response.send_message("❌ У вас уже есть клан! Сначала покиньте текущий клан.", ephemeral=True)
+
+        name = self.clan_name.value
+        tag = self.clan_tag.value.upper()
+
+        # Кланды базаға сақтау
+        clans_db[user_id] = {
+            "name": name,
+            "tag": tag,
+            "owner": user_id,
+            "members": [user_id],
+            "score": 1000
+        }
+        user_clan_mapping[user_id] = user_id
+
+        await interaction.response.send_message(f"✅ Клан **{name}** с тегом **[{tag}]** успешно создан!", ephemeral=True)
 
 
 class ClanPanelView(View):
     def __init__(self): super().__init__(timeout=None)
+
     @discord.ui.button(label="Создать клан", style=discord.ButtonStyle.primary, custom_id="create_clan_btn_alash")
     async def create_clan(self, interaction: discord.Interaction, button: Button):
         await interaction.response.send_modal(CreateClanModal())
 
     @discord.ui.button(label="Рейтинг кланов", style=discord.ButtonStyle.secondary, custom_id="clan_rating_btn_alash")
     async def clan_rating(self, interaction: discord.Interaction, button: Button):
-        await interaction.response.send_message("🏆 Рейтинг кланов пуст.", ephemeral=True)
+        if not clans_db:
+            return await interaction.response.send_message("🏆 Рейтинг кланов пуст. Пока не создано ни одного клана.", ephemeral=True)
+        
+        sorted_clans = sorted(clans_db.values(), key=lambda x: x["score"], reverse=True)
+        desc = ""
+        for i, c in enumerate(sorted_clans[:10], 1):
+            desc += f"**{i}.** [{c['tag']}] {c['name']} — **{c['score']} очков** (Участников: {len(c['members'])})\n"
+        
+        embed = discord.Embed(title="🏆 Рейтинг кланов", description=desc, color=discord.Color.gold())
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
     @discord.ui.button(label="Мой клан", style=discord.ButtonStyle.secondary, custom_id="my_clan_btn_alash")
     async def my_clan(self, interaction: discord.Interaction, button: Button):
-        await interaction.response.send_message("🛡️ У вас пока нет клана.", ephemeral=True)
+        user_id = interaction.user.id
+        clan_owner_id = user_clan_mapping.get(user_id)
+
+        if not clan_owner_id or clan_owner_id not in clans_db:
+            return await interaction.response.send_message("🛡️ У вас пока нет клана. Нажмите «Создать клан», чтобы создать свой!", ephemeral=True)
+
+        clan = clans_db[clan_owner_id]
+        members_list = ", ".join([f"<@{uid}>" for uid in clan['members']])
+
+        embed = discord.Embed(
+            title=f"🛡️ Клан: {clan['name']} [{clan['tag']}]",
+            description=(
+                f"• **Лидер:** <@{clan['owner']}>\n"
+                f"• **Очки:** {clan['score']}\n"
+                f"• **Участники ({len(clan['members'])}/5):**\n{members_list}"
+            ),
+            color=discord.Color.blue()
+        )
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
 class MyBot(commands.Bot):
@@ -435,7 +487,9 @@ async def on_message(message):
     if message.author.bot: return
     uid = message.author.id
     if uid not in user_levels: user_levels[uid] = {"exp": 0, "level": 1}
-    user_levels[uid]["exp"] += 20
+    
+    user_levels[uid]["exp"] += 7
+    
     if user_levels[uid]["exp"] >= user_levels[uid]["level"] * 100:
         user_levels[uid]["level"] += 1
         l_ch = message.guild.get_channel(LEVEL_CHANNEL_ID)
