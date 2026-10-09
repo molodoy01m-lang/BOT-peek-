@@ -656,7 +656,7 @@ bot = MyBot()
 
 
 # --------------------------------------------------
-# ДОБРО ПОЖАЛОВАТЬ (ДӘЛ СКРИНШОТТАҒЫДЭЙ ФОРМАТ)
+# ДОБРО ПОЖАЛОВАТЬ (ҚАТЫСУШЫНЫҢ ӨЗ АВАТАРКАСЫ ҮЛКЕН СУРЕТ РЕТІНДЕ)
 # --------------------------------------------------
 
 @bot.event
@@ -670,16 +670,16 @@ async def on_member_join(member):
 
     welcome_channel = member.guild.get_channel(WELCOME_CHANNEL_ID)
     if welcome_channel:
-        # Мәтіні дәл скриншоттағыдай етіліп қойылды
-        msg_content = f"Добро пожаловать на сервер, {member.mention}!"
+        embed = discord.Embed(
+            title="✨ Серверге жаңа қатысушы қосылды!",
+            description=f"Қош келдің, {member.mention}! Серверімізде сәтті уақыт өткізуіңе тілектеспіз!",
+            color=discord.Color.from_rgb(0, 255, 127)
+        )
+        # Қатысушының жеке аватаркасы үлкен сурет ретінде шығады
+        embed.set_image(url=member.display_avatar.url)
+        embed.set_footer(text=f"Қатысушы нөмірі: {member.guild.member_count}")
         
-        # Multibot генераторы арқылы аватар мен аты кескінге автоматты түрде өріледі
-        banner_url = f"https://multibot.pro/api/embeds/images/g4mmec3lwfcrwi4l?avatar={member.display_avatar.url}&name={member.name}"
-        
-        embed = discord.Embed(color=discord.Color.from_rgb(255, 50, 50))
-        embed.set_image(url=banner_url)
-        
-        await welcome_channel.send(content=msg_content, embed=embed)
+        await welcome_channel.send(content=f"👋 Сәлем, {member.mention}!", embed=embed)
 
 
 # --------------------------------------------------
