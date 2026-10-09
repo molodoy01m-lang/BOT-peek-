@@ -28,6 +28,8 @@ intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
 intents.voice_states = True
+intents.moderation = True
+intents.guilds = True
 
 # --------------------------------------------------
 # БАПТАУЛАР ЖӘНЕ ID КАНАЛДАР
@@ -36,11 +38,13 @@ AUTO_ROLE_ID = 1555292717830119514
 WELCOME_CHANNEL_ID = 1497873420216439016
 LEVEL_CHANNEL_ID = 1498243470513405992
 
+# Барлық логтар бағытталатын канал ID (Клан және Серверлік логтар бірге)
+AUDIT_LOG_CHANNEL_ID = 1535037929163063548 
+
 user_levels = {}
 verified_users = {}
 
 # Кландар базасы
-# Формат: {owner_id: {"name": str, "tag": str, "owner": int, "members": [int], "score": int, "role_id": int, "category": int, "text_ch": int, "voice_ch": int}}
 clans_db = {}
 user_clan_mapping = {}
 
@@ -55,22 +59,21 @@ STAFF_ROLE_IDS = [
 GIRL_STAFF_ROLE_IDS = [1532745811778207985, 1530890552676188301, 1530886657530925256]
 MEDIA_STAFF_ROLE_IDS = [1530888828246556753, 1532745811778207985, 1530886657530925256]
 
-TICKET_LOG_CHANNEL_ID = 1530913548761436361
-GIRL_LOG_CHANNEL_ID = 1557062204770230333
-MEDIA_LOG_CHANNEL_ID = 1557818240221323414
 MEDIA_ROLE_ID = 1530924449912586351
 
 temp_voice_channels = {}
 
 
-async def send_log(guild: discord.Guild, channel_id: int, title: str, description: str, color: discord.Color, fields: dict = None):
+async def send_custom_log(guild: discord.Guild, channel_id: int, emoji: str, title: str, description_lines: list, color: discord.Color):
     log_channel = guild.get_channel(channel_id)
     if log_channel:
-        embed = discord.Embed(title=title, description=description, color=color, timestamp=discord.utils.utcnow())
-        if fields:
-            for name, value in fields.items():
-                embed.add_field(name=name, value=value, inline=False)
-        embed.set_footer(text="Система логов ALASH PROJECT KZ")
+        desc = "\n".join(description_lines)
+        embed = discord.Embed(
+            title=f"{emoji} {title}",
+            description=desc,
+            color=color,
+            timestamp=discord.utils.utcnow()
+        )
         await log_channel.send(embed=embed)
 
 
@@ -253,8 +256,6 @@ class TicketControlView(View):
             return await interaction.response.send_message("❌ У вас нет прав!", ephemeral=True)
         await interaction.response.defer()
         await interaction.followup.send(f"**{interaction.user.mention}** взял(а)ся за тикет!")
-        log_id = GIRL_LOG_CHANNEL_ID if "девушка" in interaction.channel.name else MEDIA_LOG_CHANNEL_ID if "медиа" in interaction.channel.name else TICKET_LOG_CHANNEL_ID
-        await send_log(interaction.guild, log_id, "✋ Тикет взят", f"{interaction.user.mention} взял тикет {interaction.channel.mention}", discord.Color.blue())
 
     @discord.ui.button(label="Взять на рассмотрение", style=discord.ButtonStyle.primary, custom_id="ticket_review_btn_alash")
     async def review_button(self, interaction: discord.Interaction, button: Button):
@@ -262,16 +263,12 @@ class TicketControlView(View):
             return await interaction.response.send_message("❌ У вас нет прав!", ephemeral=True)
         await interaction.response.defer()
         await interaction.followup.send(f"**{interaction.user.mention}** взял тикет на рассмотрение.")
-        log_id = GIRL_LOG_CHANNEL_ID if "девушка" in interaction.channel.name else MEDIA_LOG_CHANNEL_ID if "медиа" in interaction.channel.name else TICKET_LOG_CHANNEL_ID
-        await send_log(interaction.guild, log_id, "🔍 На рассмотрении", f"{interaction.user.mention} перевел тикет на рассмотрение", discord.Color.orange())
 
     @discord.ui.button(label="Закрыть тикет", style=discord.ButtonStyle.danger, custom_id="ticket_close_btn_alash")
     async def close_button(self, interaction: discord.Interaction, button: Button):
         if not has_staff_permission(interaction.user, interaction.channel.name):
             return await interaction.response.send_message("❌ У вас нет прав!", ephemeral=True)
         await interaction.response.send_message("***Тикет закрывается...***", ephemeral=False)
-        log_id = GIRL_LOG_CHANNEL_ID if "девушка" in interaction.channel.name else MEDIA_LOG_CHANNEL_ID if "медиа" in interaction.channel.name else TICKET_LOG_CHANNEL_ID
-        await send_log(interaction.guild, log_id, "🔒 Тикет закрыт", f"Закрыл: {interaction.user.mention}", discord.Color.red())
         await asyncio.sleep(3)
         await interaction.channel.delete(reason="Тикет закрыт")
 
@@ -298,7 +295,6 @@ class GirlTicketMainView(View):
         embed = discord.Embed(description="**🌸 Заявка на роль Девушки**\nОжидайте ответа модераторов.", color=discord.Color.from_rgb(255, 105, 180))
         embed.add_field(name="• Пользователь", value=user.mention)
         await t_channel.send(content=f"{user.mention} " + " ".join(pings), embed=embed, view=TicketControlView("girl"))
-        await send_log(guild, GIRL_LOG_CHANNEL_ID, "🌸 Новый тикет (Девушка)", f"{user.mention} открыл тикет: {t_channel.mention}", discord.Color.from_rgb(255, 105, 180))
         await interaction.followup.send(f"Ваш тикет создан: {t_channel.mention}", ephemeral=True)
 
 
@@ -331,7 +327,6 @@ class TicketSelectView(View):
         embed.add_field(name="• Пользователь", value=user.mention)
         embed.add_field(name="• Категория", value=cat_sel)
         await t_channel.send(content=f"{user.mention} " + " ".join(pings), embed=embed, view=TicketControlView("general"))
-        await send_log(guild, TICKET_LOG_CHANNEL_ID, "📩 Новый тикет", f"{user.mention} открыл тикет: {t_channel.mention}", discord.Color.green(), {"Категория": cat_sel})
         await interaction.followup.send(f"Тикет создан: {t_channel.mention}", ephemeral=True)
 
 
@@ -368,7 +363,6 @@ class MediaApplicationModal(Modal, title="Подать заявку на Мед�
         embed.add_field(name="• Steam ID", value=self.steam_id.value)
         embed.set_thumbnail(url=user.display_avatar.url)
         await t_channel.send(content=f"{user.mention} " + " ".join(pings), embed=embed, view=TicketControlView("media"))
-        await send_log(guild, MEDIA_LOG_CHANNEL_ID, "🎬 Новая заявка на Медиа", f"{user.mention} подал заявку: {t_channel.mention}", discord.Color.red())
         await interaction.followup.send(f"Медиа тикет создан: {t_channel.mention}", ephemeral=True)
 
 
@@ -379,7 +373,7 @@ class MediaMainView(View):
         await interaction.response.send_modal(MediaApplicationModal())
 
 
-# --- КЛАНДАР ЖҮЙЕСІ (АВТОМАТТЫ РОЛЬ АШУ ЖӘНЕ БӨЛЕК КАТЕГОРИЯ) ---
+# --- КЛАНДАР ЖҮЙЕСІ ЖӘНЕ СЕРВЕРЛІК ЛОГТАР ---
 class InviteUserSelect(View):
     def __init__(self, clan_owner_id):
         super().__init__(timeout=60)
@@ -406,31 +400,36 @@ class InviteUserSelect(View):
         clan["members"].append(target_member.id)
         user_clan_mapping[target_member.id] = self.clan_owner_id
 
-        # Рөлді беру
         clan_role = guild.get_role(clan["role_id"])
         if clan_role:
-            try:
-                await target_member.add_roles(clan_role)
-            except:
-                pass
+            try: await target_member.add_roles(clan_role)
+            except: pass
 
         category = guild.get_channel(clan["category"])
         text_ch = guild.get_channel(clan["text_ch"])
         voice_ch = guild.get_channel(clan["voice_ch"])
 
-        if category:
-            await category.set_permissions(target_member, read_messages=True, connect=True, view_channel=True)
-        if text_ch:
-            await text_ch.set_permissions(target_member, read_messages=True, send_messages=True)
-        if voice_ch:
-            await voice_ch.set_permissions(target_member, connect=True, speak=True)
+        if category: await category.set_permissions(target_member, read_messages=True, connect=True, view_channel=True)
+        if text_ch: await text_ch.set_permissions(target_member, read_messages=True, send_messages=True)
+        if voice_ch: await voice_ch.set_permissions(target_member, connect=True, speak=True)
 
         try:
             new_nick = f"[{clan['tag']}] {target_member.display_name}"
-            if len(new_nick) <= 32:
-                await target_member.edit(nick=new_nick)
-        except:
-            pass
+            if len(new_nick) <= 32: await target_member.edit(nick=new_nick)
+        except: pass
+
+        await send_custom_log(
+            guild=guild,
+            channel_id=AUDIT_LOG_CHANNEL_ID,
+            emoji="👥",
+            title="Добавление игрока в клан",
+            description_lines=[
+                f"**Участник:** {target_member.name} ({target_member.mention})",
+                f"**Клан:** {clan['name']} (`[{clan['tag']}]`)",
+                f"**Добавил лидера:** {interaction.user.name} ({interaction.user.mention})"
+            ],
+            color=discord.Color.green()
+        )
 
         await interaction.response.send_message(f"✅ Игрок {target_member.mention} успешно добавлен в клан и получил роль!", ephemeral=True)
 
@@ -457,6 +456,7 @@ class ClanManagementView(View):
 
         guild = interaction.guild
         tag = clan["tag"]
+        c_name = clan["name"]
 
         for uid in clan["members"]:
             member = guild.get_member(uid)
@@ -467,18 +467,13 @@ class ClanManagementView(View):
                     if current_nick.startswith(f"[{tag}] "):
                         clean_nick = current_nick[len(tag) + 3:]
                         await member.edit(nick=clean_nick)
-                except:
-                    pass
+                except: pass
 
-        # Рольді өшіру
         clan_role = guild.get_role(clan["role_id"])
         if clan_role:
-            try:
-                await clan_role.delete()
-            except:
-                pass
+            try: await clan_role.delete()
+            except: pass
 
-        # Категория мен арналарды өшіру
         text_ch = guild.get_channel(clan["text_ch"])
         voice_ch = guild.get_channel(clan["voice_ch"])
         category = guild.get_channel(clan["category"])
@@ -488,6 +483,19 @@ class ClanManagementView(View):
         if category: await category.delete()
 
         del clans_db[self.clan_owner_id]
+
+        await send_custom_log(
+            guild=guild,
+            channel_id=AUDIT_LOG_CHANNEL_ID,
+            emoji="🛑",
+            title="Расформирование клана",
+            description_lines=[
+                f"**Клан:** {c_name} (`[{tag}]`)",
+                f"**Распустил:** {interaction.user.name} ({interaction.user.mention})"
+            ],
+            color=discord.Color.red()
+        )
+
         await interaction.response.send_message("🛑 Клан успешно распущен, роль, категория и каналы удалены.", ephemeral=True)
 
 
@@ -506,14 +514,12 @@ class CreateClanModal(Modal, title="Создание клана"):
         name = self.clan_name.value
         tag = self.clan_tag.value.upper()
 
-        # Клан үшін автоматты түрде РОЛЬ АШУ (Мысалы: Peek Clan)
         try:
             clan_role = await guild.create_role(name=f"{name} Clan", color=discord.Color.random(), reason=f"Клан создан: {name}")
             await user.add_roles(clan_role)
         except Exception as e:
             return await interaction.response.send_message(f"❌ Ошибка при создании роли: {e}", ephemeral=True)
 
-        # Категория мен арналар ашу
         overwrites = {
             guild.default_role: discord.PermissionOverwrite(read_messages=False, connect=False, view_channel=False),
             user: discord.PermissionOverwrite(read_messages=True, send_messages=True, connect=True, speak=True, view_channel=True),
@@ -542,10 +548,21 @@ class CreateClanModal(Modal, title="Создание клана"):
 
         try:
             new_nick = f"[{tag}] {user.display_name}"
-            if len(new_nick) <= 32:
-                await user.edit(nick=new_nick)
-        except:
-            pass
+            if len(new_nick) <= 32: await user.edit(nick=new_nick)
+        except: pass
+
+        await send_custom_log(
+            guild=guild,
+            channel_id=AUDIT_LOG_CHANNEL_ID,
+            emoji="⚔️",
+            title="Создание клана",
+            description_lines=[
+                f"**Клан:** {name} (`[{tag}]`)",
+                f"**Основатель:** {user.name} ({user.mention})",
+                f"**Роль:** {clan_role.name}"
+            ],
+            color=discord.Color.blue()
+        )
 
         await interaction.response.send_message(
             f"✅ Клан **{name}** с тегом **[{tag}]** успешно создан!\n"
@@ -625,7 +642,7 @@ bot = MyBot()
 
 
 # --------------------------------------------------
-# СОБЫТИЯ ЖӘНЕ КОМАНДАЛАР
+# СЕРВЕРЛІК ЛОГТАР ЖӘНЕ ОҚИҒАЛАР (БАН, МУТ, УДАЛИТЬ ЕТУ)
 # --------------------------------------------------
 @bot.event
 async def on_member_join(member):
@@ -653,6 +670,108 @@ async def on_message(message):
         l_ch = message.guild.get_channel(LEVEL_CHANNEL_ID)
         if l_ch: await l_ch.send(f"Поздравляем {message.author.mention}! Ты достиг {user_levels[uid]['level']} уровня!")
     await bot.process_commands(message)
+
+
+# Хабарлама өшірілгенде (Удаление сообщения)
+@bot.event
+async def on_message_delete(message):
+    if message.author.bot: return
+    await send_custom_log(
+        guild=message.guild,
+        channel_id=AUDIT_LOG_CHANNEL_ID,
+        emoji="🗑️",
+        title="Удаление сообщения",
+        description_lines=[
+            f"**Автор:** {message.author.name} ({message.author.mention})",
+            f"**Канал:** {message.channel.mention}",
+            f"**Содержание сообщения:**\n`{message.content or 'Медиа / Вложение'}`"
+        ],
+        color=discord.Color.red()
+    )
+
+
+# Бан немесе разбан берілгенде (Бан / Разбан участника)
+@bot.event
+async def on_member_ban(guild, user):
+    async for entry in guild.audit_logs(limit=1, action=discord.AuditLogAction.ban):
+        moderator = entry.user
+        reason = entry.reason or "Не указана"
+        break
+    else:
+        moderator = None
+        reason = "Не указана"
+
+    await send_custom_log(
+        guild=guild,
+        channel_id=AUDIT_LOG_CHANNEL_ID,
+        emoji="🔨",
+        title="Бан участника",
+        description_lines=[
+            f"**Участник:** {user.name} ({user.mention})",
+            f"**Забанил:** {moderator.name if moderator else 'Неизвестно'} ({moderator.mention if moderator else 'N/A'})",
+            f"**Причина:** `{reason}`"
+        ],
+        color=discord.Color.dark_red()
+    )
+
+
+@bot.event
+async def on_member_unban(guild, user):
+    async for entry in guild.audit_logs(limit=1, action=discord.AuditLogAction.unban):
+        moderator = entry.user
+        break
+    else:
+        moderator = None
+
+    await send_custom_log(
+        guild=guild,
+        channel_id=AUDIT_LOG_CHANNEL_ID,
+        emoji="🔓",
+        title="Разбан участника",
+        description_lines=[
+            f"**Участник:** {user.name} ({user.mention})",
+            f"**Разбанил:** {moderator.name if moderator else 'Неизвестно'} ({moderator.mention if moderator else 'N/A'})"
+        ],
+        color=discord.Color.green()
+    )
+
+
+# Мут жасалғанда немесе уақытша шеттеткенде (Timeout / Мут)
+@bot.event
+async def on_member_update(before, after):
+    if before.timed_out_until != after.timed_out_until:
+        guild = after.guild
+        if after.timed_out_until is not None:
+            async for entry in guild.audit_logs(limit=1, action=discord.AuditLogAction.member_update):
+                if entry.target.id == after.id:
+                    moderator = entry.user
+                    break
+            else:
+                moderator = None
+
+            await send_custom_log(
+                guild=guild,
+                channel_id=AUDIT_LOG_CHANNEL_ID,
+                emoji="🔇",
+                title="Выдан мут (Timeout)",
+                description_lines=[
+                    f"**Участник:** {after.name} ({after.mention})",
+                    f"**Модератор:** {moderator.name if moderator else 'Неизвестно'} ({moderator.mention if moderator else 'N/A'})",
+                    f"**До:** {after.timed_out_until}"
+                ],
+                color=discord.Color.orange()
+            )
+        else:
+            await send_custom_log(
+                guild=guild,
+                channel_id=AUDIT_LOG_CHANNEL_ID,
+                emoji="🔊",
+                title="Снят мут",
+                description_lines=[
+                    f"**Участник:** {after.name} ({after.mention})"
+                ],
+                color=discord.Color.blue()
+            )
 
 
 @bot.event
