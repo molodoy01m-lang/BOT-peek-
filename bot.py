@@ -37,8 +37,9 @@ AUTO_ROLE_ID = 1555292717830119514
 WELCOME_CHANNEL_ID = 1497873420216439016
 LEVEL_CHANNEL_ID = 1498243470513405992
 
-# База данных опыта в памяти {user_id: {"exp": 0, "level": 1}}
+# База данных опыта и FACEIT верификации в памяти
 user_levels = {}
+verified_users = {}
 
 # --------------------------------------------------
 # БАННЕРЛЕРДІҢ СІЛТЕМЕЛЕРІ (URL)
@@ -81,13 +82,9 @@ MEDIA_LOG_CHANNEL_ID = 1557818240221323414
 
 MEDIA_ROLE_ID = 1530924449912586351
 
-# Уақытша войс бөлмелерін сақтау {channel_id: owner_id}
 temp_voice_channels = {}
 
 
-# --------------------------------------------------
-# ЛОГ ЖІБЕРУ ФУНКЦИЯСЫ
-# --------------------------------------------------
 async def send_log(guild: discord.Guild, channel_id: int, title: str, description: str, color: discord.Color, fields: dict = None):
     log_channel = guild.get_channel(channel_id)
     if log_channel:
@@ -104,9 +101,6 @@ async def send_log(guild: discord.Guild, channel_id: int, title: str, descriptio
         await log_channel.send(embed=embed)
 
 
-# --------------------------------------------------
-# СУРЕТТІ ЖҮКТЕП АЛУ ФУНКЦИЯСЫ
-# --------------------------------------------------
 async def get_discord_file_from_url(url: str, filename: str):
     async with aiohttp.ClientSession() as session:
         async with session.get(url) as resp:
@@ -116,9 +110,6 @@ async def get_discord_file_from_url(url: str, filename: str):
     return None
 
 
-# --------------------------------------------------
-# ҚЫЗМЕТКЕР ҚҰҚЫҚТАРЫН ТЕКСЕРУ ФУНКЦИЯСЫ
-# --------------------------------------------------
 def has_staff_permission(member: discord.Member, channel_name: str) -> bool:
     user_role_ids = [role.id for role in member.roles]
     
@@ -131,10 +122,6 @@ def has_staff_permission(member: discord.Member, channel_name: str) -> bool:
 
     return any(role_id in user_role_ids for role_id in required_roles)
 
-
-# --------------------------------------------------
-# ВРЕМЕННЫЕ ВОЙСЫ: МОДАЛКА И МЕНЮ ВЫБОРА
-# --------------------------------------------------
 
 class RenameVoiceModal(Modal, title="Переименовать канал"):
     new_name = TextInput(
@@ -173,10 +160,6 @@ class UserActionView(View):
             await interaction.response.send_message(f"👑 Права на канал переданы {target_member.mention}.", ephemeral=True)
 
 
-# --------------------------------------------------
-# ВРЕМЕННЫЕ ВОЙСЫ: ПАНЕЛЬ УПРАВЛЕНИЯ
-# --------------------------------------------------
-
 class VoiceControlPanel(View):
     def __init__(self):
         super().__init__(timeout=None)
@@ -198,7 +181,6 @@ class VoiceControlPanel(View):
         is_ok, result = self.check_owner(interaction)
         if not is_ok:
             return await interaction.response.send_message(result, ephemeral=True)
-        
         channel = result
         new_limit = min((channel.user_limit or 0) + 1, 99)
         await channel.edit(user_limit=new_limit)
@@ -209,7 +191,6 @@ class VoiceControlPanel(View):
         is_ok, result = self.check_owner(interaction)
         if not is_ok:
             return await interaction.response.send_message(result, ephemeral=True)
-        
         channel = result
         current = channel.user_limit or len(channel.members)
         new_limit = max(current - 1, 1)
@@ -228,7 +209,6 @@ class VoiceControlPanel(View):
         is_ok, result = self.check_owner(interaction)
         if not is_ok:
             return await interaction.response.send_message(result, ephemeral=True)
-        
         channel = result
         await channel.set_permissions(interaction.guild.default_role, connect=True)
         await interaction.response.send_message("🔓 Канал открыт для всех.", ephemeral=True)
@@ -238,7 +218,6 @@ class VoiceControlPanel(View):
         is_ok, result = self.check_owner(interaction)
         if not is_ok:
             return await interaction.response.send_message(result, ephemeral=True)
-        
         channel = result
         await channel.set_permissions(interaction.guild.default_role, connect=False)
         await interaction.response.send_message("🔒 Канал закрыт от посторонних.", ephemeral=True)
@@ -262,7 +241,6 @@ class VoiceControlPanel(View):
         is_ok, result = self.check_owner(interaction)
         if not is_ok:
             return await interaction.response.send_message(result, ephemeral=True)
-        
         channel = result
         await channel.set_permissions(interaction.guild.default_role, view_channel=False)
         await interaction.response.send_message("🙈 Канал скрыт.", ephemeral=True)
@@ -272,7 +250,6 @@ class VoiceControlPanel(View):
         is_ok, result = self.check_owner(interaction)
         if not is_ok:
             return await interaction.response.send_message(result, ephemeral=True)
-        
         channel = result
         await channel.set_permissions(interaction.guild.default_role, view_channel=True)
         await interaction.response.send_message("👁️ Канал снова виден всем.", ephemeral=True)
@@ -292,9 +269,42 @@ class VoiceControlPanel(View):
         await interaction.response.send_message("Выберите пользователя, которого нужно выгнать:", view=UserActionView("block"), ephemeral=True)
 
 
-# --------------------------------------------------
-# 1. ТИКЕТ ІШІНДЕГІ БАСҚАРУ БАТЫРМАЛАРЫ
-# --------------------------------------------------
+class FaceitVerifyView(View):
+    def __init__(self):
+        super().__init__(timeout=None)
+        self.add_item(Button(
+            label="Верифицироваться", 
+            emoji="✅", 
+            style=discord.ButtonStyle.success, 
+            url="https://your-render-app-url.onrender.com/verify"
+        ))
+
+    @discord.ui.button(label="Мой профиль", emoji="👤", style=discord.ButtonStyle.primary, custom_id="faceit_profile_btn")
+    async def profile_button(self, interaction: discord.Interaction, button: Button):
+        user_id = interaction.user.id
+        if user_id in verified_users:
+            data = verified_users[user_id]
+            await interaction.response.send_message(f"👤 Ваш профиль FACEIT:\n• Уровень: **{data['level']}**\n• Steam: **{data['steam']}**", ephemeral=True)
+        else:
+            await interaction.response.send_message("❌ Вы еще не прошли FACEIT верификацию!", ephemeral=True)
+
+    @discord.ui.button(label="Обновить уровень", emoji="🔄", style=discord.ButtonStyle.secondary, custom_id="faceit_refresh_btn")
+    async def refresh_button(self, interaction: discord.Interaction, button: Button):
+        user_id = interaction.user.id
+        if user_id in verified_users:
+            await interaction.response.send_message("🔄 Ваш FACEIT уровень успешно обновлен!", ephemeral=True)
+        else:
+            await interaction.response.send_message("❌ Сначала пройдите верификацию!", ephemeral=True)
+
+    @discord.ui.button(label="Сбросить профиль", emoji="🛑", style=discord.ButtonStyle.danger, custom_id="faceit_reset_btn")
+    async def reset_button(self, interaction: discord.Interaction, button: Button):
+        user_id = interaction.user.id
+        if user_id in verified_users:
+            del verified_users[user_id]
+            await interaction.response.send_message("🛑 Ваш верифицированный профиль сброшен.", ephemeral=True)
+        else:
+            await interaction.response.send_message("❌ У вас нет привязанного профиля.", ephemeral=True)
+
 
 class TicketControlView(View):
     def __init__(self, ticket_type: str = "general"):
@@ -371,10 +381,6 @@ class TicketControlView(View):
         await interaction.channel.delete(reason=f"Тикет закрыт: {interaction.user.name}")
 
 
-# --------------------------------------------------
-# 2. ҚЫЗДАР ТИКЕТІ
-# --------------------------------------------------
-
 class GirlTicketMainView(View):
     def __init__(self):
         super().__init__(timeout=None)
@@ -387,10 +393,8 @@ class GirlTicketMainView(View):
     )
     async def open_girl_ticket(self, interaction: discord.Interaction, button: Button):
         await interaction.response.defer(ephemeral=True)
-
         guild = interaction.guild
         user = interaction.user
-
         channel_name = f"девушка-{user.name}"
 
         existing_channel = discord.utils.get(guild.text_channels, name=channel_name)
@@ -412,7 +416,6 @@ class GirlTicketMainView(View):
                 valid_roles_to_ping.append(role.mention)
 
         category = interaction.channel.category
-
         ticket_channel = await guild.create_text_channel(
             name=channel_name,
             category=category,
@@ -421,7 +424,6 @@ class GirlTicketMainView(View):
         )
 
         roles_ping_text = " ".join(valid_roles_to_ping) if valid_roles_to_ping else ""
-
         embed = discord.Embed(
             description=(
                 "**🌸 Заявка на получение роли Девушки**\n\n"
@@ -445,13 +447,8 @@ class GirlTicketMainView(View):
             description=f"Пользователь {user.mention} создал тикет верификации: {ticket_channel.mention}",
             color=discord.Color.from_rgb(255, 105, 180)
         )
-
         await interaction.followup.send(f"Ваш тикет создан: {ticket_channel.mention}", ephemeral=True)
 
-
-# --------------------------------------------------
-# 3. ЖАЛПЫ ТИКЕТТЕР
-# --------------------------------------------------
 
 class TicketSelectView(View):
     def __init__(self):
@@ -468,11 +465,9 @@ class TicketSelectView(View):
     )
     async def select_callback(self, interaction: discord.Interaction, select: discord.ui.Select):
         await interaction.response.defer(ephemeral=True)
-
         guild = interaction.guild
         user = interaction.user
         category_selected = select.values[0]
-
         channel_name = f"заявление-{user.name}"
 
         existing_channel = discord.utils.get(guild.text_channels, name=channel_name)
@@ -494,7 +489,6 @@ class TicketSelectView(View):
                 valid_roles_to_ping.append(role.mention)
 
         category = interaction.channel.category
-
         ticket_channel = await guild.create_text_channel(
             name=channel_name,
             category=category,
@@ -503,7 +497,6 @@ class TicketSelectView(View):
         )
 
         roles_ping_text = " ".join(valid_roles_to_ping) if valid_roles_to_ping else ""
-
         embed = discord.Embed(
             description=(
                 "**Система поддержки ALASH PROJECT KZ**\n\n"
@@ -528,7 +521,6 @@ class TicketSelectView(View):
             color=discord.Color.green(),
             fields={"Категория": category_selected}
         )
-
         await interaction.followup.send(f"Ваш тикет создан: {ticket_channel.mention}", ephemeral=True)
 
 
@@ -548,10 +540,6 @@ class TicketMainView(View):
             ephemeral=True
         )
 
-
-# --------------------------------------------------
-# 4. МЕДИА ТИКЕТ
-# --------------------------------------------------
 
 class MediaApplicationModal(Modal, title="Подать заявку на Медиа"):
     game_nick = TextInput(
@@ -576,7 +564,6 @@ class MediaApplicationModal(Modal, title="Подать заявку на Мед�
 
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
-
         guild = interaction.guild
         user = interaction.user
         channel_name = f"медиа-{user.name}"
@@ -600,7 +587,6 @@ class MediaApplicationModal(Modal, title="Подать заявку на Мед�
                 valid_roles_to_ping.append(role.mention)
 
         category = interaction.channel.category
-
         ticket_channel = await guild.create_text_channel(
             name=channel_name,
             category=category,
@@ -609,7 +595,6 @@ class MediaApplicationModal(Modal, title="Подать заявку на Мед�
         )
 
         roles_ping_text = " ".join(valid_roles_to_ping) if valid_roles_to_ping else ""
-
         embed = discord.Embed(
             title="🎬 Заявка на роль МЕДИА",
             description="Ожидайте ответа от медиа-кураторов.",
@@ -639,7 +624,6 @@ class MediaApplicationModal(Modal, title="Подать заявку на Мед�
                 "Steam ID": self.steam_id.value
             }
         )
-
         await interaction.followup.send(f"Ваш медиа тикет создан: {ticket_channel.mention}", ephemeral=True)
 
 
@@ -656,10 +640,6 @@ class MediaMainView(View):
         await interaction.response.send_modal(MediaApplicationModal())
 
 
-# --------------------------------------------------
-# 5. ИНТЕРФЕЙСТІ ЖІБЕРУ КОМАНДАЛАРЫ
-# --------------------------------------------------
-
 class MyBot(commands.Bot):
     def __init__(self):
         super().__init__(command_prefix="!", intents=intents)
@@ -670,12 +650,13 @@ class MyBot(commands.Bot):
         self.add_view(TicketControlView())
         self.add_view(MediaMainView())
         self.add_view(VoiceControlPanel())
+        self.add_view(FaceitVerifyView())
 
 bot = MyBot()
 
 
 # --------------------------------------------------
-# СОБЫТИЕ ПРИ ВХОДЕ НОВОГО УЧАСТНИКА
+# ЖАҢА ПИКЕТ (БАННЕР МЕН АВАТАРКА ТҮРІНДЕГІ ПРИВЕТСТВИЕ)
 # --------------------------------------------------
 
 @bot.event
@@ -689,24 +670,15 @@ async def on_member_join(member):
 
     welcome_channel = member.guild.get_channel(WELCOME_CHANNEL_ID)
     if welcome_channel:
-        embed = discord.Embed(
-            title="<a:15770animatedarrowyellow:1503049767016595586> Автоматическая роль",
-            color=discord.Color.from_rgb(40, 43, 48)
-        )
-        embed.add_field(name="Пользователь", value=member.mention, inline=True)
-        embed.add_field(name="Роль", value=role.mention if role else "Роль не найдена", inline=True)
-        embed.add_field(name="Действие", value="добавлена", inline=True)
+        # Сіз сұраған әдемі баннер түрі (Multibot генераторы арқылы қолданушы аватаркасы мен аты шығады)
+        embed = discord.Embed(color=discord.Color.from_rgb(255, 50, 50))
+        embed.set_image(url=f"https://multibot.pro/api/embeds/images/g4mmec3lwfcrwi4l?avatar={member.display_avatar.url}&name={member.name}")
         
-        current_time = discord.utils.utcnow().strftime("%A, %d октября %Y г. в %H:%M")
-        embed.add_field(name="Время", value=current_time, inline=False)
-        
-        embed.set_thumbnail(url=member.display_avatar.url)
-        
-        await welcome_channel.send(embed=embed)
+        await welcome_channel.send(content=f"Добро пожаловать на сервер, {member.mention}!", embed=embed)
 
 
 # --------------------------------------------------
-# СИСТЕМА УРОВНЕЙ (ОТПРАВКА В КАНАЛ ПО ID)
+# СИСТЕМА УРОВНЕЙ
 # --------------------------------------------------
 
 @bot.event
@@ -718,9 +690,7 @@ async def on_message(message):
     if user_id not in user_levels:
         user_levels[user_id] = {"exp": 0, "level": 1}
 
-    # Начисляем опыт за сообщение
     user_levels[user_id]["exp"] += 20
-    
     current_level = user_levels[user_id]["level"]
     exp_needed = current_level * 100
 
@@ -728,7 +698,6 @@ async def on_message(message):
         user_levels[user_id]["level"] += 1
         new_level = user_levels[user_id]["level"]
         
-        # Отправляем сообщение в указанный канал уровней по ID
         level_channel = message.guild.get_channel(LEVEL_CHANNEL_ID)
         if level_channel:
             await level_channel.send(f"Поздравляем {message.author.mention}! Ты достиг {new_level} уровня!")
@@ -736,24 +705,17 @@ async def on_message(message):
     await bot.process_commands(message)
 
 
-# --------------------------------------------------
-# ВРЕМЕННЫЕ ВОЙСЫ: АВТО-СОЗДАНИЕ И АВТО-УДАЛЕНИЕ
-# --------------------------------------------------
-
 @bot.event
 async def on_voice_state_update(member, before, after):
     if after.channel and ("Создать войс" in after.channel.name or "создать войс" in after.channel.name.lower()):
         category = after.channel.category
         guild = member.guild
-
         voice_channel = await guild.create_voice_channel(
             name=f"Комната {member.name}",
             category=category,
             reason=f"Приватный войс для {member.name}"
         )
-
         await voice_channel.set_permissions(member, connect=True, speak=True, manage_channels=True)
-        
         temp_voice_channels[voice_channel.id] = member.id
         await member.move_to(voice_channel)
 
@@ -763,9 +725,24 @@ async def on_voice_state_update(member, before, after):
             await before.channel.delete(reason="Временный приватный войс пуст.")
 
 
-# --------------------------------------------------
-# КОМАНДАРЫ
-# --------------------------------------------------
+@bot.command()
+async def send_verification(ctx):
+    embed = discord.Embed(
+        title="🛡️ FACEIT Верификация",
+        description=(
+            "Нажмите кнопку ниже, чтобы пройти верификацию.\n\n"
+            "• Проверка Discord\n"
+            "• Проверка профиля FACEIT\n"
+            "• Проверка привязанного Steam для CS2\n"
+            "• Определение FACEIT Level 1–10\n"
+            "• Защита от повторной привязки аккаунта\n\n"
+            "После успешной проверки бот автоматически выдаст роль верификации и роль вашего FACEIT Level.\n"
+            "ALASH PROJECT KZ"
+        ),
+        color=discord.Color.blue()
+    )
+    await ctx.send(embed=embed, view=FaceitVerifyView())
+
 
 @bot.command()
 async def send_voice_panel(ctx):
@@ -794,7 +771,6 @@ async def send_voice_panel(ctx):
 @bot.command()
 async def send_girl_ticket(ctx):
     file = await get_discord_file_from_url(GIRL_BANNER_URL, "banner_girl.png")
-
     if file:
         img_embed = discord.Embed(color=discord.Color.from_rgb(255, 105, 180))
         img_embed.set_image(url="attachment://banner_girl.png")
@@ -822,7 +798,6 @@ async def send_girl_ticket(ctx):
 @bot.command()
 async def send_ticket(ctx):
     file = await get_discord_file_from_url(MAIN_BANNER_URL, "banner.png")
-
     if file:
         img_embed = discord.Embed(color=discord.Color.from_rgb(57, 255, 20))
         img_embed.set_image(url="attachment://banner.png")
@@ -850,7 +825,6 @@ async def send_ticket(ctx):
 @bot.command()
 async def send_media(ctx):
     file = await get_discord_file_from_url(MEDIA_BANNER_URL, "banner_media.png")
-
     if file:
         img_embed = discord.Embed(color=discord.Color.from_rgb(180, 0, 0))
         img_embed.set_image(url="attachment://banner_media.png")
