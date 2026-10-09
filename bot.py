@@ -236,7 +236,6 @@ class GirlTicketMainView(View):
                 overwrites[role] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
                 valid_roles_to_ping.append(role.mention)
 
-        # Тикет каналды осы кнопка басылған категорияның ІШІНЕ ашады
         category = interaction.channel.category
 
         ticket_channel = await guild.create_text_channel(
@@ -319,7 +318,6 @@ class TicketSelectView(View):
                 overwrites[role] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
                 valid_roles_to_ping.append(role.mention)
 
-        # Тикет каналды осы кнопка басылған категорияның ІШІНЕ ашады
         category = interaction.channel.category
 
         ticket_channel = await guild.create_text_channel(
@@ -426,7 +424,6 @@ class MediaApplicationModal(Modal, title="Подать заявку на Мед�
                 overwrites[role] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
                 valid_roles_to_ping.append(role.mention)
 
-        # Тикет каналды осы кнопка басылған категорияның ІШІНЕ ашады
         category = interaction.channel.category
 
         ticket_channel = await guild.create_text_channel(
@@ -514,15 +511,16 @@ async def send_girl_ticket(ctx):
         img_embed.set_image(url=GIRL_BANNER_URL)
         await ctx.send(embed=img_embed)
 
+    # Жаңартылған Қыздар тикетінің мәтіні мен кастомдық эмодзилері
     text_embed = discord.Embed(
         description=(
-            "**❤️ Роль Девушка**\n\n"
-            "• Нажмите кнопку ниже, чтобы создать тикет для верификации и получения роли Девушка\n\n"
-            "✨ **Информация**\n"
-            "• Создайте тикет для верификации\n"
-            "• Предоставьте доказательства\n"
-            "• Модераторы рассмотрят ваш запрос\n\n"
-            "📸 Чтобы получить роль, откройте тикет или обратитесь к администрации сервера."
+            "<:soulred:1503151722611347586> **Роль Девушка**\n\n"
+            "<a:a_pink_dot:1503133833548271646> Нажмите кнопку ниже, чтобы создать тикет для верификации и получения роли Девушка\n\n"
+            "<a:15770animatedarrowyellow:1503049767016595586> **Информация**\n"
+            "<a:a_pink_dot:1503133833548271646> Создайте тикет для верификации\n"
+            "<a:a_pink_dot:1503133833548271646> Предоставьте доказательства\n"
+            "<a:a_pink_dot:1503133833548271646> Модераторы рассмотрят ваш запрос\n\n"
+            "<a:15770animatedarrowyellow:1503049767016595586> Чтобы получить роль, откройте тикет или обратитесь к администрации сервера."
         ),
         color=discord.Color.from_rgb(255, 105, 180)
     )
