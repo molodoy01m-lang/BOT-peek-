@@ -31,12 +31,13 @@ intents.members = True
 intents.voice_states = True
 
 # --------------------------------------------------
-# НАСТРОЙКИ АВТО-РОЛИ И КАНАЛА ПРИВЕТСТВИЯ
+# НАСТРОЙКИ АВТО-РОЛИ И КАНАЛОВ
 # --------------------------------------------------
 AUTO_ROLE_ID = 1555292717830119514
 WELCOME_CHANNEL_ID = 1497873420216439016
+LEVEL_CHANNEL_ID = 1498243470513405992
 
-# Простая база данных в памяти для опыта пользователей {user_id: {"exp": 0, "level": 1}}
+# База данных опыта в памяти {user_id: {"exp": 0, "level": 1}}
 user_levels = {}
 
 # --------------------------------------------------
@@ -705,7 +706,7 @@ async def on_member_join(member):
 
 
 # --------------------------------------------------
-# СИСТЕМА УРОВНЕЙ (ОПЫТ ЗА СООБЩЕНИЯ)
+# СИСТЕМА УРОВНЕЙ (ОТПРАВКА В КАНАЛ ПО ID)
 # --------------------------------------------------
 
 @bot.event
@@ -717,19 +718,20 @@ async def on_message(message):
     if user_id not in user_levels:
         user_levels[user_id] = {"exp": 0, "level": 1}
 
-    # Добавляем случайный опыт за каждое сообщение (например, от 15 до 25 XP)
+    # Начисляем опыт за сообщение
     user_levels[user_id]["exp"] += 20
     
     current_level = user_levels[user_id]["level"]
-    # Формула для следующего уровня (например: уровень * 100 XP)
     exp_needed = current_level * 100
 
     if user_levels[user_id]["exp"] >= exp_needed:
         user_levels[user_id]["level"] += 1
         new_level = user_levels[user_id]["level"]
         
-        # Отправляем сообщение о повышении уровня, как на вашем скриншоте
-        await message.channel.send(f"Поздравляем {message.author.mention}! Ты достиг {new_level} уровня!")
+        # Отправляем сообщение в указанный канал уровней по ID
+        level_channel = message.guild.get_channel(LEVEL_CHANNEL_ID)
+        if level_channel:
+            await level_channel.send(f"Поздравляем {message.author.mention}! Ты достиг {new_level} уровня!")
 
     await bot.process_commands(message)
 
