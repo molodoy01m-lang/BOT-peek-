@@ -8,7 +8,7 @@ from discord.ui import View, Select, Button, Modal, TextInput
 from flask import Flask
 from threading import Thread
 
-# Web-server (для поддержания работы 24/7 на Render)
+# Web-server (Render-де бот 24/7 жұмыс істеп тұруы үшін)
 app = Flask('')
 
 @app.route('/')
@@ -29,14 +29,14 @@ intents.message_content = True
 intents.members = True
 
 # --------------------------------------------------
-# ССЫЛКИ НА БАННЕРЫ (URL)
+# БАННЕРЛЕРДІҢ СІЛТЕМЕЛЕРІ (URL)
 # --------------------------------------------------
 MAIN_BANNER_URL = "https://multibot.pro/api/embeds/images/g4mmec3lwfcrwi4l"
 GIRL_BANNER_URL = "https://media.discordapp.net/attachments/1544309714962227230/1557815971660435456/banner_girl.png?ex=6ac92cae&is=6ac7db2e&hm=250e0baedfe61fc5baff21e59e0e6bd61f5e494d88ade315be12b6e3c199c916&=&format=webp&quality=lossless&width=2048&height=729"
 MEDIA_BANNER_URL = "https://multibot.pro/api/embeds/images/nfmpvssumgp3km0o"
 
 # --------------------------------------------------
-# ИДЕНТИФИКАТОРЫ РОЛЕЙ
+# РӨЛДЕРДІҢ ID'ЛЕРІ
 # --------------------------------------------------
 
 STAFF_ROLE_IDS = [
@@ -61,7 +61,7 @@ MEDIA_STAFF_ROLE_IDS = [
 ]
 
 # --------------------------------------------------
-# ИДЕНТИФИКАТОРЫ КАНАЛОВ ЛОГОВ
+# ЛОГ КАНАЛДАРДЫҢ ID'ЛЕРІ
 # --------------------------------------------------
 TICKET_LOG_CHANNEL_ID = 1530913548761436361
 GIRL_LOG_CHANNEL_ID = 1557062204770230333
@@ -71,7 +71,7 @@ MEDIA_ROLE_ID = 1530924449912586351
 
 
 # --------------------------------------------------
-# ФУНКЦИЯ ОТПРАВКИ ЛОГОВ
+# ЛОГ ЖІБЕРУ ФУНКЦИЯСЫ
 # --------------------------------------------------
 async def send_log(guild: discord.Guild, channel_id: int, title: str, description: str, color: discord.Color, fields: dict = None):
     log_channel = guild.get_channel(channel_id)
@@ -90,7 +90,7 @@ async def send_log(guild: discord.Guild, channel_id: int, title: str, descriptio
 
 
 # --------------------------------------------------
-# ФУНКЦИЯ СКАЧИВАНИЯ КАРТИНКИ
+# СУРЕТТІ ЖҮКТЕП АЛУ ФУНКЦИЯСЫ
 # --------------------------------------------------
 async def get_discord_file_from_url(url: str, filename: str):
     async with aiohttp.ClientSession() as session:
@@ -102,7 +102,23 @@ async def get_discord_file_from_url(url: str, filename: str):
 
 
 # --------------------------------------------------
-# 1. КНОПКИ УПРАВЛЕНИЯ ВНУТРИ ТИКЕТА
+# ҚЫЗМЕТКЕР ҚҰҚЫҚТАРЫН ТЕКСЕРУ ФУНКЦИЯСЫ
+# --------------------------------------------------
+def has_staff_permission(member: discord.Member, channel_name: str) -> bool:
+    user_role_ids = [role.id for role in member.roles]
+    
+    if "девушка" in channel_name:
+        required_roles = GIRL_STAFF_ROLE_IDS
+    elif "медиа" in channel_name:
+        required_roles = MEDIA_STAFF_ROLE_IDS
+    else:
+        required_roles = STAFF_ROLE_IDS
+
+    return any(role_id in user_role_ids for role_id in required_roles)
+
+
+# --------------------------------------------------
+# 1. ТИКЕТ ІШІНДЕГІ БАСҚАРУ БАТЫРМАЛАРЫ
 # --------------------------------------------------
 
 class TicketControlView(View):
@@ -112,6 +128,10 @@ class TicketControlView(View):
 
     @discord.ui.button(label="Взяться", style=discord.ButtonStyle.success, custom_id="ticket_take_btn_alash")
     async def take_button(self, interaction: discord.Interaction, button: Button):
+        if not has_staff_permission(interaction.user, interaction.channel.name):
+            await interaction.response.send_message("❌ У вас нет прав для взаимодействия с тикетом!", ephemeral=True)
+            return
+
         await interaction.response.defer()
         await interaction.followup.send(f"**{interaction.user.mention}** взял(а)ся за данный тикет!")
 
@@ -130,6 +150,10 @@ class TicketControlView(View):
 
     @discord.ui.button(label="Взять на рассмотрение", style=discord.ButtonStyle.primary, custom_id="ticket_review_btn_alash")
     async def review_button(self, interaction: discord.Interaction, button: Button):
+        if not has_staff_permission(interaction.user, interaction.channel.name):
+            await interaction.response.send_message("❌ У вас нет прав для взаимодействия с тикетом!", ephemeral=True)
+            return
+
         await interaction.response.defer()
         await interaction.followup.send(f"**{interaction.user.mention}** взял(а) тикет на рассмотрение.")
 
@@ -148,6 +172,10 @@ class TicketControlView(View):
 
     @discord.ui.button(label="Закрыть тикет", style=discord.ButtonStyle.danger, custom_id="ticket_close_btn_alash")
     async def close_button(self, interaction: discord.Interaction, button: Button):
+        if not has_staff_permission(interaction.user, interaction.channel.name):
+            await interaction.response.send_message("❌ У вас нет прав для взаимодействия с тикетом!", ephemeral=True)
+            return
+
         await interaction.response.send_message("***Тикет закрывается и будет удален...***", ephemeral=False)
 
         log_channel_id = (
@@ -169,7 +197,7 @@ class TicketControlView(View):
 
 
 # --------------------------------------------------
-# 2. ТИКЕТ ДЛЯ ДЕВУШЕК
+# 2. ҚЫЗДАР ТИКЕТІ
 # --------------------------------------------------
 
 class GirlTicketMainView(View):
@@ -179,7 +207,7 @@ class GirlTicketMainView(View):
     @discord.ui.button(
         label="Получить роль девушка",
         emoji="🌸",
-        style=discord.ButtonStyle.secondary,  # Серый цвет
+        style=discord.ButtonStyle.secondary,
         custom_id="open_girl_ticket_btn_alash"
     )
     async def open_girl_ticket(self, interaction: discord.Interaction, button: Button):
@@ -208,8 +236,12 @@ class GirlTicketMainView(View):
                 overwrites[role] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
                 valid_roles_to_ping.append(role.mention)
 
+        # Тикет каналды осы кнопка басылған категорияның ІШІНЕ ашады
+        category = interaction.channel.category
+
         ticket_channel = await guild.create_text_channel(
             name=channel_name,
+            category=category,
             overwrites=overwrites,
             reason=f"Верификация девушки: {user.name}"
         )
@@ -244,7 +276,7 @@ class GirlTicketMainView(View):
 
 
 # --------------------------------------------------
-# 3. ОБЩИЕ ТИКЕТЫ
+# 3. ЖАЛПЫ ТИКЕТТЕР
 # --------------------------------------------------
 
 class TicketSelectView(View):
@@ -287,8 +319,12 @@ class TicketSelectView(View):
                 overwrites[role] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
                 valid_roles_to_ping.append(role.mention)
 
+        # Тикет каналды осы кнопка басылған категорияның ІШІНЕ ашады
+        category = interaction.channel.category
+
         ticket_channel = await guild.create_text_channel(
             name=channel_name,
+            category=category,
             overwrites=overwrites,
             reason=f"Тикет открыт: {user.name}"
         )
@@ -329,7 +365,7 @@ class TicketMainView(View):
 
     @discord.ui.button(
         label="Открыть тикет",
-        style=discord.ButtonStyle.secondary,  # Серый цвет
+        style=discord.ButtonStyle.secondary,
         custom_id="open_ticket_main_btn_alash"
     )
     async def open_ticket(self, interaction: discord.Interaction, button: Button):
@@ -390,8 +426,12 @@ class MediaApplicationModal(Modal, title="Подать заявку на Мед�
                 overwrites[role] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
                 valid_roles_to_ping.append(role.mention)
 
+        # Тикет каналды осы кнопка басылған категорияның ІШІНЕ ашады
+        category = interaction.channel.category
+
         ticket_channel = await guild.create_text_channel(
             name=channel_name,
+            category=category,
             overwrites=overwrites,
             reason=f"Медиа тикет открыт: {user.name}"
         )
@@ -437,7 +477,7 @@ class MediaMainView(View):
 
     @discord.ui.button(
         label="Подать заявку",
-        style=discord.ButtonStyle.secondary,  # Серый цвет
+        style=discord.ButtonStyle.secondary,
         custom_id="open_media_modal_btn_alash"
     )
     async def apply_media_button(self, interaction: discord.Interaction, button: Button):
@@ -445,7 +485,7 @@ class MediaMainView(View):
 
 
 # --------------------------------------------------
-# 5. КОМАНДЫ ДЛЯ ОТПРАВКИ ИНТЕРФЕЙСА
+# 5. ИНТЕРФЕЙСТІ ЖІБЕРУ КОМАНДАЛАРЫ
 # --------------------------------------------------
 
 class MyBot(commands.Bot):
@@ -504,13 +544,13 @@ async def send_ticket(ctx):
 
     text_embed = discord.Embed(
         description=(
-            "**Система поддержки ALASH PROJECT KZ**\n\n"
-            "**Возникли вопросы, проблемы или нужна помощь? Опишите ситуацию**\n\n"
-            "**Что можно оформить через тикет?**\n"
-            "• Жалобы на игроков или пользователей.\n"
-            "• Вопросы по серверу или Discord.\n"
-            "• Проблемы с верификацией.\n"
-            "• Ошибки, баги и технические неполадки."
+            "<:18690member:1503151722611347586> **Система поддержки ALASH PROJECT KZ**\n\n"
+            "<a:15770animatedarrowyellow:1503049767016595586> **Возникли вопросы, проблемы или нужна помощь? Опишите ситуацию**\n\n"
+            "<a:15770animatedarrowyellow:1503049767016595586> **Что можно оформить через тикет?**\n"
+            "<a:a_pink_dot:1503133833548271646> Жалобы на игроков или пользователей.\n"
+            "<a:a_pink_dot:1503133833548271646> Вопросы по серверу или Discord.\n"
+            "<a:a_pink_dot:1503133833548271646> Проблемы с верификацией.\n"
+            "<a:a_pink_dot:1503133833548271646> Ошибки, баги и технические неполадки."
         ),
         color=discord.Color.from_rgb(57, 255, 20)
     )
@@ -532,13 +572,13 @@ async def send_media(ctx):
 
     text_embed = discord.Embed(
         description=(
-            "• Наш проект готов к сотрудничеству с вами как с медиа игроком (TikTok стримы/видео).\n\n"
-            "• Мы предлагаем партнерство, где ваша аудитория и активность помогают продвижению проекта.\n\n"
-            "• Мы уверены, что совместно сможем создавать качественный и интересный контент.\n\n"
-            f"❯ **Что вы получите**\n"
-            "• Привилегию на сервере \"Медиа\"\n"
-            f"• Роль в Discord <@&{MEDIA_ROLE_ID}>\n"
-            "• В привилегию \"MEDIA\" входит весь функционал привилегии \"ALASH\""
+            "<a:a_pink_dot:1503133833548271646> Наш проект готов к сотрудничеству с вами как с медиа игроком (TikTok стримы/видео).\n\n"
+            "<a:a_pink_dot:1503133833548271646> Мы предлагаем партнерство, где ваша аудитория и активность помогают продвижению проекта.\n\n"
+            "<a:a_pink_dot:1503133833548271646> Мы уверены, что совместно сможем создавать качественный и интересный контент.\n\n"
+            f"<a:15770animatedarrowyellow:1503049767016595586> **Что вы получите**\n"
+            "<a:a_pink_dot:1503133833548271646> Привилегию на сервере \"Медиа\"\n"
+            f"<a:a_pink_dot:1503133833548271646> Роль в Discord <@&{MEDIA_ROLE_ID}>\n"
+            "<a:a_pink_dot:1503133833548271646> В привилегию \"MEDIA\" входит весь функционал привилегии \"ALASH\""
         ),
         color=discord.Color.from_rgb(180, 0, 0)
     )
