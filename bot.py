@@ -655,7 +655,7 @@ bot = MyBot()
 
 
 # --------------------------------------------------
-# ДОБРО ПОЖАЛОВАТЬ (КЛАССИК ЭМБЕД ФОРМАТ)
+# ДОБРО ПОЖАЛОВАТЬ (ЖАҢАРТЫЛҒАН ФОРМАТ)
 # --------------------------------------------------
 
 @bot.event
@@ -670,14 +670,14 @@ async def on_member_join(member):
     welcome_channel = member.guild.get_channel(WELCOME_CHANNEL_ID)
     if welcome_channel:
         embed = discord.Embed(
-            title="✨ Қош келдіңіз!",
-            description=f"**Добро пожаловать на сервер, {member.mention}!**\n\nСерверімізде сәтті уақыт өткізуіңізге тілектеспіз!",
+            title="Добро пожаловать!",
+            description=f"Добро пожаловать на сервер, {member.mention}!",
             color=discord.Color.from_rgb(57, 255, 20)
         )
         embed.set_thumbnail(url=member.display_avatar.url)
         embed.set_footer(text=f"Қатысушы нөмірі: {member.guild.member_count}")
         
-        await welcome_channel.send(content=f"👋 Сәлем, {member.mention}!", embed=embed)
+        await welcome_channel.send(content=f"Добро пожаловать, {member.mention}!", embed=embed)
 
 
 # --------------------------------------------------
