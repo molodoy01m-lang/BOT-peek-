@@ -40,7 +40,7 @@ user_levels = {}
 verified_users = {}
 
 # Кландар базасы
-# Формат: {owner_id: {"name": str, "tag": str, "owner": int, "members": [int], "score": int, "text_ch": int, "voice_ch": int}}
+# Формат: {owner_id: {"name": str, "tag": str, "owner": int, "members": [int], "score": int, "role_id": int, "category": int, "text_ch": int, "voice_ch": int}}
 clans_db = {}
 user_clan_mapping = {}
 
@@ -379,7 +379,7 @@ class MediaMainView(View):
         await interaction.response.send_modal(MediaApplicationModal())
 
 
-# --- КЛАНДАР ЖҮЙЕСІ (ЧАТ ЖӘНЕ ВОЙС АРНАЛАРЫМЕН) ---
+# --- КЛАНДАР ЖҮЙЕСІ (АВТОМАТТЫ РОЛЬ АШУ ЖӘНЕ БӨЛЕК КАТЕГОРИЯ) ---
 class InviteUserSelect(View):
     def __init__(self, clan_owner_id):
         super().__init__(timeout=60)
@@ -406,15 +406,25 @@ class InviteUserSelect(View):
         clan["members"].append(target_member.id)
         user_clan_mapping[target_member.id] = self.clan_owner_id
 
-        # Чат пен войс арналарына рұқсат беру
+        # Рөлді беру
+        clan_role = guild.get_role(clan["role_id"])
+        if clan_role:
+            try:
+                await target_member.add_roles(clan_role)
+            except:
+                pass
+
+        category = guild.get_channel(clan["category"])
         text_ch = guild.get_channel(clan["text_ch"])
         voice_ch = guild.get_channel(clan["voice_ch"])
+
+        if category:
+            await category.set_permissions(target_member, read_messages=True, connect=True, view_channel=True)
         if text_ch:
             await text_ch.set_permissions(target_member, read_messages=True, send_messages=True)
         if voice_ch:
             await voice_ch.set_permissions(target_member, connect=True, speak=True)
 
-        # Ник өзгерту ([ТЕГ] Ник)
         try:
             new_nick = f"[{clan['tag']}] {target_member.display_name}"
             if len(new_nick) <= 32:
@@ -422,7 +432,7 @@ class InviteUserSelect(View):
         except:
             pass
 
-        await interaction.response.send_message(f"✅ Игрок {target_member.mention} успешно добавлен в клан!", ephemeral=True)
+        await interaction.response.send_message(f"✅ Игрок {target_member.mention} успешно добавлен в клан и получил роль!", ephemeral=True)
 
 
 class ClanManagementView(View):
@@ -448,7 +458,6 @@ class ClanManagementView(View):
         guild = interaction.guild
         tag = clan["tag"]
 
-        # Қатысушылардың нигінен тегті алып тастау
         for uid in clan["members"]:
             member = guild.get_member(uid)
             if member:
@@ -461,14 +470,25 @@ class ClanManagementView(View):
                 except:
                     pass
 
-        # Арналарды өшіру
+        # Рольді өшіру
+        clan_role = guild.get_role(clan["role_id"])
+        if clan_role:
+            try:
+                await clan_role.delete()
+            except:
+                pass
+
+        # Категория мен арналарды өшіру
         text_ch = guild.get_channel(clan["text_ch"])
         voice_ch = guild.get_channel(clan["voice_ch"])
+        category = guild.get_channel(clan["category"])
+
         if text_ch: await text_ch.delete()
         if voice_ch: await voice_ch.delete()
+        if category: await category.delete()
 
         del clans_db[self.clan_owner_id]
-        await interaction.response.send_message("🛑 Клан успешно распущен (disband), а каналы удалены.", ephemeral=True)
+        await interaction.response.send_message("🛑 Клан успешно распущен, роль, категория и каналы удалены.", ephemeral=True)
 
 
 class CreateClanModal(Modal, title="Создание клана"):
@@ -485,18 +505,25 @@ class CreateClanModal(Modal, title="Создание клана"):
 
         name = self.clan_name.value
         tag = self.clan_tag.value.upper()
-        category = interaction.channel.category
 
-        # Клан үшін жабық чат және войс ашу
+        # Клан үшін автоматты түрде РОЛЬ АШУ (Мысалы: Peek Clan)
+        try:
+            clan_role = await guild.create_role(name=f"{name} Clan", color=discord.Color.random(), reason=f"Клан создан: {name}")
+            await user.add_roles(clan_role)
+        except Exception as e:
+            return await interaction.response.send_message(f"❌ Ошибка при создании роли: {e}", ephemeral=True)
+
+        # Категория мен арналар ашу
         overwrites = {
-            guild.default_role: discord.PermissionOverwrite(read_messages=False, connect=False),
-            user: discord.PermissionOverwrite(read_messages=True, send_messages=True, connect=True, speak=True),
-            guild.me: discord.PermissionOverwrite(read_messages=True, send_messages=True, connect=True, manage_channels=True)
+            guild.default_role: discord.PermissionOverwrite(read_messages=False, connect=False, view_channel=False),
+            user: discord.PermissionOverwrite(read_messages=True, send_messages=True, connect=True, speak=True, view_channel=True),
+            guild.me: discord.PermissionOverwrite(read_messages=True, send_messages=True, connect=True, view_channel=True, manage_channels=True)
         }
 
         try:
-            text_channel = await guild.create_text_channel(name=f"💬│clan-{tag.lower()}", category=category, overwrites=overwrites)
-            voice_channel = await guild.create_voice_channel(name=f"🔊│Клан {tag}", category=category, overwrites=overwrites)
+            category = await guild.create_category(name=f"🛡️ Клан [{tag}]", overwrites=overwrites)
+            text_channel = await guild.create_text_channel(name=f"💬│чат-{tag.lower()}", category=category)
+            voice_channel = await guild.create_voice_channel(name=f"🔊│войс-{tag}", category=category)
         except Exception as e:
             return await interaction.response.send_message(f"❌ Ошибка при создании каналов: {e}", ephemeral=True)
 
@@ -506,12 +533,13 @@ class CreateClanModal(Modal, title="Создание клана"):
             "owner": user_id,
             "members": [user_id],
             "score": 1000,
+            "role_id": clan_role.id,
+            "category": category.id,
             "text_ch": text_channel.id,
             "voice_ch": voice_channel.id
         }
         user_clan_mapping[user_id] = user_id
 
-        # Лидердің нигін өзгерту ([ТЕГ] Ник)
         try:
             new_nick = f"[{tag}] {user.display_name}"
             if len(new_nick) <= 32:
@@ -521,6 +549,8 @@ class CreateClanModal(Modal, title="Создание клана"):
 
         await interaction.response.send_message(
             f"✅ Клан **{name}** с тегом **[{tag}]** успешно создан!\n"
+            f"• Авто-роль: {clan_role.mention}\n"
+            f"• Категория: **🛡️ Клан [{tag}]**\n"
             f"• Чат: {text_channel.mention}\n"
             f"• Войс: {voice_channel.mention}",
             ephemeral=True
@@ -537,7 +567,7 @@ class ClanPanelView(View):
     @discord.ui.button(label="Рейтинг кланов", style=discord.ButtonStyle.secondary, custom_id="clan_rating_btn_alash")
     async def clan_rating(self, interaction: discord.Interaction, button: Button):
         if not clans_db:
-            return await interaction.response.send_message("🏆 Рейтинг кланов пуст. Пока не создано ни одного клана.", ephemeral=True)
+            return await interaction.response.send_message("🏆 Рейтинг кланов пуст.", ephemeral=True)
         
         sorted_clans = sorted(clans_db.values(), key=lambda x: x["score"], reverse=True)
         desc = ""
@@ -553,11 +583,12 @@ class ClanPanelView(View):
         clan_owner_id = user_clan_mapping.get(user_id)
 
         if not clan_owner_id or clan_owner_id not in clans_db:
-            return await interaction.response.send_message("🛡️ У вас пока нет клана. Нажмите «Создать клан», чтобы создать свой!", ephemeral=True)
+            return await interaction.response.send_message("🛡️ У вас пока нет клана.", ephemeral=True)
 
         clan = clans_db[clan_owner_id]
         members_list = ", ".join([f"<@{uid}>" for uid in clan['members']])
         guild = interaction.guild
+        clan_role = guild.get_role(clan["role_id"])
         text_ch = guild.get_channel(clan["text_ch"])
         voice_ch = guild.get_channel(clan["voice_ch"])
 
@@ -565,6 +596,7 @@ class ClanPanelView(View):
             title=f"🛡️ Клан: {clan['name']} [{clan['tag']}]",
             description=(
                 f"• **Лидер:** <@{clan['owner']}>\n"
+                f"• **Роль:** {clan_role.mention if clan_role else 'Удалена'}\n"
                 f"• **Очки:** {clan['score']}\n"
                 f"• **Чат:** {text_ch.mention if text_ch else 'Удален'}\n"
                 f"• **Войс:** {voice_ch.mention if voice_ch else 'Удален'}\n\n"
