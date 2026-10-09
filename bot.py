@@ -271,6 +271,7 @@ class VoiceControlPanel(View):
 class FaceitVerifyView(View):
     def __init__(self):
         super().__init__(timeout=None)
+        # БҰЛ ЖЕРГЕ ӨЗІҢІЗДІҢ RENDER-ДЕГІ СІЛТЕМЕНІ ЖАЗАСЫЗ (Мысалы: https://bot-atin.onrender.com/verify)
         self.add_item(Button(
             label="Верифицироваться", 
             emoji="✅", 
