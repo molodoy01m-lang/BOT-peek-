@@ -271,12 +271,12 @@ class VoiceControlPanel(View):
 class FaceitVerifyView(View):
     def __init__(self):
         super().__init__(timeout=None)
-        # БҰЛ ЖЕРГЕ ӨЗІҢІЗДІҢ RENDER-ДЕГІ СІЛТЕМЕНІ ЖАЗАСЫЗ (Мысалы: https://bot-atin.onrender.com/verify)
+        # Ресми FACEIT сайты немесе өз сайтыңыздың сілтемесі
         self.add_item(Button(
             label="Верифицироваться", 
             emoji="✅", 
             style=discord.ButtonStyle.success, 
-            url="https://your-render-app-url.onrender.com/verify"
+            url="https://www.faceit.com"
         ))
 
     @discord.ui.button(label="Мой профиль", emoji="👤", style=discord.ButtonStyle.primary, custom_id="faceit_profile_btn")
