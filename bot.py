@@ -30,9 +30,10 @@ intents.members = True
 intents.voice_states = True
 
 # --------------------------------------------------
-# ЖАҢА КІРГЕНДЕ АВТОМАТТЫ ТҮРДЕ БЕРІЛЕТІН РОЛЬ ID'СІ
+# НАСТРОЙКИ АВТО-РОЛИ И КАНАЛА ПРИВЕТСТВИЯ
 # --------------------------------------------------
 AUTO_ROLE_ID = 1555292717830119514
+WELCOME_CHANNEL_ID = 1497873420216439016
 
 # --------------------------------------------------
 # БАННЕРЛЕРДІҢ СІЛТЕМЕЛЕРІ (URL)
@@ -40,6 +41,9 @@ AUTO_ROLE_ID = 1555292717830119514
 MAIN_BANNER_URL = "https://multibot.pro/api/embeds/images/g4mmec3lwfcrwi4l"
 GIRL_BANNER_URL = "https://media.discordapp.net/attachments/1544309714962227230/1557815971660435456/banner_girl.png?ex=6ac92cae&is=6ac7db2e&hm=250e0baedfe61fc5baff21e59e0e6bd61f5e494d88ade315be12b6e3c199c916&=&format=webp&quality=lossless&width=2048&height=729"
 MEDIA_BANNER_URL = "https://multibot.pro/api/embeds/images/nfmpvssumgp3km0o"
+
+# Приветственный баннер
+WELCOME_CARD_API = "https://multibot.pro/api/embeds/images/g4mmec3lwfcrwi4l" 
 
 # --------------------------------------------------
 # РӨЛДЕРДІҢ ID'ЛЕРІ
@@ -669,17 +673,33 @@ bot = MyBot()
 
 
 # --------------------------------------------------
-# ЖАҢА ПАЙДАЛАНУШЫ КІРГЕНДЕ АВТОМАТТЫ РОЛЬ БЕРУ
+# СОБЫТИЕ ПРИ ВХОДЕ НОВОГО УЧАСТНИКА
 # --------------------------------------------------
 
 @bot.event
 async def on_member_join(member):
+    # 1. Автоматическая выдача роли
     try:
         role = member.guild.get_role(AUTO_ROLE_ID)
         if role:
             await member.add_roles(role, reason="Авто-роль при входе")
     except Exception as e:
-        print(f"Роль беруде қате шықты: {e}")
+        print(f"Ошибка при выдаче авто-роли: {e}")
+
+    # 2. Отправка приветствия по ID канала
+    welcome_channel = member.guild.get_channel(WELCOME_CHANNEL_ID)
+    if welcome_channel:
+        msg_content = f"Добро пожаловать на сервер, {member.mention}!"
+        
+        file = await get_discord_file_from_url(WELCOME_CARD_API, "welcome.png")
+        if file:
+            embed = discord.Embed(color=discord.Color.from_rgb(255, 50, 50))
+            embed.set_image(url="attachment://welcome.png")
+            await welcome_channel.send(content=msg_content, file=file)
+        else:
+            embed = discord.Embed(color=discord.Color.from_rgb(255, 50, 50))
+            embed.set_image(url=WELCOME_CARD_API)
+            await welcome_channel.send(content=msg_content, embed=embed)
 
 
 # --------------------------------------------------
