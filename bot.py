@@ -38,8 +38,11 @@ AUTO_ROLE_ID = 1555292717830119514
 WELCOME_CHANNEL_ID = 1497873420216439016
 LEVEL_CHANNEL_ID = 1498243470513405992
 
-# Барлық логтар бағытталатын канал ID (Клан және Серверлік логтар бірге)
-AUDIT_LOG_CHANNEL_ID = 1535037929163063548 
+# 1. Тек клан логтары баратын арнайы канал ID
+CLAN_LOG_CHANNEL_ID = 1558250408617443398 
+
+# 2. Жалпы серверлік логтар (бан, мут, удалить) баратын канал ID
+SERVER_LOG_CHANNEL_ID = 1535037929163063548 
 
 user_levels = {}
 verified_users = {}
@@ -373,7 +376,7 @@ class MediaMainView(View):
         await interaction.response.send_modal(MediaApplicationModal())
 
 
-# --- КЛАНДАР ЖҮЙЕСІ ЖӘНЕ СЕРВЕРЛІК ЛОГТАР ---
+# --- КЛАНДАР ЖҮЙЕСІ (CLAN_LOG_CHANNEL_ID-КЕ ЖІБЕРЕДІ) ---
 class InviteUserSelect(View):
     def __init__(self, clan_owner_id):
         super().__init__(timeout=60)
@@ -420,7 +423,7 @@ class InviteUserSelect(View):
 
         await send_custom_log(
             guild=guild,
-            channel_id=AUDIT_LOG_CHANNEL_ID,
+            channel_id=CLAN_LOG_CHANNEL_ID,
             emoji="👥",
             title="Добавление игрока в клан",
             description_lines=[
@@ -486,7 +489,7 @@ class ClanManagementView(View):
 
         await send_custom_log(
             guild=guild,
-            channel_id=AUDIT_LOG_CHANNEL_ID,
+            channel_id=CLAN_LOG_CHANNEL_ID,
             emoji="🛑",
             title="Расформирование клана",
             description_lines=[
@@ -553,7 +556,7 @@ class CreateClanModal(Modal, title="Создание клана"):
 
         await send_custom_log(
             guild=guild,
-            channel_id=AUDIT_LOG_CHANNEL_ID,
+            channel_id=CLAN_LOG_CHANNEL_ID,
             emoji="⚔️",
             title="Создание клана",
             description_lines=[
@@ -642,7 +645,7 @@ bot = MyBot()
 
 
 # --------------------------------------------------
-# СЕРВЕРЛІК ЛОГТАР ЖӘНЕ ОҚИҒАЛАР (БАН, МУТ, УДАЛИТЬ ЕТУ)
+# СЕРВЕРЛІК ЛОГТАР (SERVER_LOG_CHANNEL_ID-КЕ ЖІБЕРЕДІ)
 # --------------------------------------------------
 @bot.event
 async def on_member_join(member):
@@ -678,7 +681,7 @@ async def on_message_delete(message):
     if message.author.bot: return
     await send_custom_log(
         guild=message.guild,
-        channel_id=AUDIT_LOG_CHANNEL_ID,
+        channel_id=SERVER_LOG_CHANNEL_ID,
         emoji="🗑️",
         title="Удаление сообщения",
         description_lines=[
@@ -703,7 +706,7 @@ async def on_member_ban(guild, user):
 
     await send_custom_log(
         guild=guild,
-        channel_id=AUDIT_LOG_CHANNEL_ID,
+        channel_id=SERVER_LOG_CHANNEL_ID,
         emoji="🔨",
         title="Бан участника",
         description_lines=[
@@ -725,7 +728,7 @@ async def on_member_unban(guild, user):
 
     await send_custom_log(
         guild=guild,
-        channel_id=AUDIT_LOG_CHANNEL_ID,
+        channel_id=SERVER_LOG_CHANNEL_ID,
         emoji="🔓",
         title="Разбан участника",
         description_lines=[
@@ -751,7 +754,7 @@ async def on_member_update(before, after):
 
             await send_custom_log(
                 guild=guild,
-                channel_id=AUDIT_LOG_CHANNEL_ID,
+                channel_id=SERVER_LOG_CHANNEL_ID,
                 emoji="🔇",
                 title="Выдан мут (Timeout)",
                 description_lines=[
@@ -764,7 +767,7 @@ async def on_member_update(before, after):
         else:
             await send_custom_log(
                 guild=guild,
-                channel_id=AUDIT_LOG_CHANNEL_ID,
+                channel_id=SERVER_LOG_CHANNEL_ID,
                 emoji="🔊",
                 title="Снят мут",
                 description_lines=[
