@@ -670,7 +670,7 @@ bot = MyBot()
 
 
 # --------------------------------------------------
-# СОБЫТИЕ ПРИ ВХОДЕ НОВОГО УЧАСТНИКА (ЛОГ-СТИЛЬ КАК НА СКРИНЕ)
+# СОБЫТИЕ ПРИ ВХОДЕ НОВОГО УЧАСТНИКА (С ЭМОДЗИ)
 # --------------------------------------------------
 
 @bot.event
@@ -685,18 +685,16 @@ async def on_member_join(member):
     welcome_channel = member.guild.get_channel(WELCOME_CHANNEL_ID)
     if welcome_channel:
         embed = discord.Embed(
-            title="🤖 Автоматическая роль",
+            title="<a:15770animatedarrowyellow:1503049767016595586> Автоматическая роль",
             color=discord.Color.from_rgb(40, 43, 48)
         )
         embed.add_field(name="Пользователь", value=member.mention, inline=True)
         embed.add_field(name="Роль", value=role.mention if role else "Роль не найдена", inline=True)
         embed.add_field(name="Действие", value="добавлена", inline=True)
         
-        # Получаем дату и время в нужном формате
         current_time = discord.utils.utcnow().strftime("%A, %d октября %Y г. в %H:%M")
         embed.add_field(name="Время", value=current_time, inline=False)
         
-        # Устанавливаем аватарку пользователя как на скриншоте справа
         embed.set_thumbnail(url=member.display_avatar.url)
         
         await welcome_channel.send(embed=embed)
