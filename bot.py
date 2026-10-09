@@ -656,7 +656,7 @@ bot = MyBot()
 
 
 # --------------------------------------------------
-# ДОБРО ПОЖАЛОВАТЬ (КАРТОЧКА КАК НА СКРИНШОТЕ)
+# ДОБРО ПОЖАЛОВАТЬ (КЛАССИК АКЕМИ БОТ СТИЛІ)
 # --------------------------------------------------
 
 @bot.event
@@ -670,15 +670,15 @@ async def on_member_join(member):
 
     welcome_channel = member.guild.get_channel(WELCOME_CHANNEL_ID)
     if welcome_channel:
-        msg_content = f"Добро пожаловать на сервер, {member.mention}!"
+        embed = discord.Embed(
+            title="Добро пожаловать!",
+            description=f"Привет, {member.mention}! Добро пожаловать на сервер **{member.guild.name}**!",
+            color=discord.Color.from_rgb(57, 255, 20)
+        )
+        embed.set_thumbnail(url=member.display_avatar.url)
+        embed.set_footer(text=f"Участник №{member.guild.member_count}")
         
-        # Дәл скриншоттағы стикер/карточка сілтемесі
-        banner_url = f"https://multibot.pro/api/embeds/images/g4mmec3lwfcrwi4l?avatar={member.display_avatar.url}&name={member.name}"
-        
-        embed = discord.Embed(color=discord.Color.from_rgb(255, 50, 50))
-        embed.set_image(url=banner_url)
-        
-        await welcome_channel.send(content=msg_content, embed=embed)
+        await welcome_channel.send(content=f"{member.mention}", embed=embed)
 
 
 # --------------------------------------------------
