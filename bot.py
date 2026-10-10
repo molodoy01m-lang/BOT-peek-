@@ -38,10 +38,11 @@ AUTO_ROLE_ID = 1555292717830119514
 WELCOME_CHANNEL_ID = 1497873420216439016
 LEVEL_CHANNEL_ID = 1498243470513405992
 
-# 1. Тек клан логтары баратын арнайы канал ID
-CLAN_LOG_CHANNEL_ID = 1558250408617443398 
+# MIX Ролінің ID-сін осы жерге жазыңыз (мысалы, 5x5 MIX ойыншыларына арналған)
+MIX_ROLE_ID = 1555292717830119514 
 
-# 2. Жалпы серверлік логтар (бан, мут, удалить) баратын канал ID
+# Лог каналдары
+CLAN_LOG_CHANNEL_ID = 1558250408617443398 
 SERVER_LOG_CHANNEL_ID = 1535037929163063548 
 
 user_levels = {}
@@ -98,6 +99,48 @@ def has_staff_permission(member: discord.Member, channel_name: str) -> bool:
     else:
         required_roles = STAFF_ROLE_IDS
     return any(role_id in user_role_ids for role_id in required_roles)
+
+
+# --------------------------------------------------
+# 5x5 MIX ЛОББИ ЖҮЙЕСІ (СКРИНШОТ БОЙЫНША)
+# --------------------------------------------------
+class MixLobbyView(View):
+    def __init__(self):
+        super().__init__(timeout=None)
+        # Жоғарғы оң жақтағы сайт сілтемесі түймесі
+        self.add_item(Button(label="alash-project.kz", emoji="🔗", url="https://alash-project.kz", row=0))
+
+    @discord.ui.button(label="Создать 5x5 FreePick", style=discord.ButtonStyle.primary, custom_id="mix_freepick_open", row=1)
+    async def freepick_btn(self, interaction: discord.Interaction, button: Button):
+        await interaction.response.send_message("⚔️ **Создание лобби 5x5 FreePick...**\nОжидание подключения игроков (0/10)", ephemeral=True)
+
+    @discord.ui.button(label="Закрытое 5x5 FreePick", style=discord.ButtonStyle.secondary, custom_id="mix_freepick_close", row=1)
+    async def freepick_close_btn(self, interaction: discord.Interaction, button: Button):
+        await interaction.response.send_message("🔒 **Создание приватного лобби 5x5 FreePick...**", ephemeral=True)
+
+    @discord.ui.button(label="Создать 5x5 Автобаланс", style=discord.ButtonStyle.primary, custom_id="mix_autobalance_open", row=2)
+    async def autobalance_btn(self, interaction: discord.Interaction, button: Button):
+        await interaction.response.send_message("⚖️ **Создание лобби 5x5 Автобаланс...**\nКоманды будут сбалансированы по Faceit LVL/ELO.", ephemeral=True)
+
+    @discord.ui.button(label="Закрытое 5x5 Автобаланс", style=discord.ButtonStyle.secondary, custom_id="mix_autobalance_close", row=2)
+    async def autobalance_close_btn(self, interaction: discord.Interaction, button: Button):
+        await interaction.response.send_message("🔒 **Создание приватного лобби 5x5 Автобаланс...**", ephemeral=True)
+
+    @discord.ui.button(label="Получить роль", style=discord.ButtonStyle.success, custom_id="mix_get_role", row=3)
+    async def get_role_btn(self, interaction: discord.Interaction, button: Button):
+        guild = interaction.guild
+        role = guild.get_role(MIX_ROLE_ID)
+        user = interaction.user
+
+        if not role:
+            return await interaction.response.send_message("❌ Роль MIX не найдена в настройках бота.", ephemeral=True)
+
+        if role in user.roles:
+            await user.remove_roles(role)
+            await interaction.response.send_message("➖ С вас снята роль **5x5 MIX**.", ephemeral=True)
+        else:
+            await user.add_roles(role)
+            await interaction.response.send_message("✅ Вам успешно выдана роль **5x5 MIX**!", ephemeral=True)
 
 
 # --------------------------------------------------
@@ -376,7 +419,7 @@ class MediaMainView(View):
         await interaction.response.send_modal(MediaApplicationModal())
 
 
-# --- КЛАНДАР ЖҮЙЕСІ (CLAN_LOG_CHANNEL_ID-КЕ ЖІБЕРЕДІ) ---
+# --- КЛАНДАР ЖҮЙЕСІ ---
 class InviteUserSelect(View):
     def __init__(self, clan_owner_id):
         super().__init__(timeout=60)
@@ -640,12 +683,13 @@ class MyBot(commands.Bot):
         self.add_view(VoiceControlPanel())
         self.add_view(FaceitVerifyView())
         self.add_view(ClanPanelView())
+        self.add_view(MixLobbyView()) # 5x5 MIX Баттондарын белсендіру
 
 bot = MyBot()
 
 
 # --------------------------------------------------
-# СЕРВЕРЛІК ЛОГТАР (SERVER_LOG_CHANNEL_ID-КЕ ЖІБЕРЕДІ)
+# СЕРВЕРЛІК ЛОГТАР ЖӘНЕ ОҚИҒАЛАР
 # --------------------------------------------------
 @bot.event
 async def on_member_join(member):
@@ -788,6 +832,29 @@ async def on_voice_state_update(member, before, after):
         if len(before.channel.members) == 0:
             del temp_voice_channels[before.channel.id]
             await before.channel.delete()
+
+
+# --------------------------------------------------
+# КОМАНДАЛАР
+# --------------------------------------------------
+@bot.command()
+async def send_mix(ctx):
+    """5x5 MIX Лобби жасау мәзірін шығару командасы"""
+    embed = discord.Embed(
+        title="<a:15770animatedarrowyellow:1503049767016595586> Создание лобби",
+        description=(
+            "Выберите режим матча\n\n"
+            "<a:15770animatedarrowyellow:1503049767016595586> **5x5 FreePick**\n"
+            "Команды выбирают капитаны. Рейтинг ELO не начисляется\n\n"
+            "<a:15770animatedarrowyellow:1503049767016595586> **5x5 Автобаланс**\n"
+            "Команды балансируются по Faceit LVL / ELO. Рейтинг ELO начисляется\n\n"
+            "<a:15770animatedarrowyellow:1503049767016595586> **Требования**\n"
+            "• Привязка Discord обязательна: https://alash-project.kz/\n"
+            "• Свободный сервер должен быть доступен"
+        ),
+        color=discord.Color.from_rgb(180, 0, 0)
+    )
+    await ctx.send(embed=embed, view=MixLobbyView())
 
 
 @bot.command()
