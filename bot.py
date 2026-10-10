@@ -2,9 +2,10 @@ import os
 import asyncio
 import aiohttp
 import io
+import random
 import discord
 from discord.ext import commands
-from discord.ui import View, Button, Modal, TextInput, UserSelect
+from discord.ui import View, Button, Modal, UserSelect
 from flask import Flask
 from threading import Thread
 
@@ -42,6 +43,9 @@ LEVEL_CHANNEL_ID = 1498243470513405992
 CLAN_LOG_CHANNEL_ID = 1558250408617443398 
 SERVER_LOG_CHANNEL_ID = 1535037929163063548 
 
+# Серверге кошулуу IP
+SERVER_CONNECT_IP = "connect connect.alashproject.kz"
+
 user_levels = {}
 verified_users = {}
 
@@ -66,6 +70,8 @@ MEDIA_STAFF_ROLE_IDS = [1530888828246556753, 1532745811778207985, 15308866575309
 MEDIA_ROLE_ID = 1530924449912586351
 
 temp_voice_channels = {}
+
+CYBERSHOK_MAPS = ["de_mirage", "de_inferno", "de_dust2", "de_nuke", "de_anubis", "de_ancient", "de_vertigo"]
 
 
 async def send_custom_log(guild: discord.Guild, channel_id: int, emoji: str, title: str, description_lines: list, color: discord.Color):
@@ -102,7 +108,143 @@ def has_staff_permission(member: discord.Member, channel_name: str) -> bool:
 
 
 # --------------------------------------------------
-# 5x5 MIX ЛОББИ ЖҮЙЕСІ (VOIN PRO СТИЛІНДЕ)
+# MAP VETO (CYBERSHOK BAN) VIEW
+# --------------------------------------------------
+class CybershokMapVetoView(View):
+    def __init__(self, lobby_id: int, cap1: int, cap2: int, remaining_maps: list, current_turn: int, team1: list, team2: list):
+        super().__init__(timeout=None)
+        self.lobby_id = lobby_id
+        self.cap1 = cap1
+        self.cap2 = cap2
+        self.maps = remaining_maps
+        self.turn = current_turn
+        self.team1 = team1
+        self.team2 = team2
+
+        for m in self.maps:
+            btn = Button(label=m, style=discord.ButtonStyle.danger, custom_id=f"cb_ban_{m}_{lobby_id}")
+            btn.callback = self.make_ban_callback(m)
+            self.add_item(btn)
+
+    def make_ban_callback(self, map_name: str):
+        async def callback(interaction: discord.Interaction):
+            if interaction.user.id != self.turn:
+                return await interaction.response.send_message("❌ Қазір бұл капитанның кезегі емес!", ephemeral=True)
+
+            self.maps.remove(map_name)
+            next_turn = self.cap2 if self.turn == self.cap1 else self.cap1
+
+            if len(self.maps) == 1:
+                final_map = self.maps[0]
+                
+                t1_mentions = "\n".join([f"• <@{uid}>" for uid in self.team1])
+                t2_mentions = "\n".join([f"• <@{uid}>" for uid in self.team2])
+
+                embed = discord.Embed(
+                    title=f"⚡ CYBERSHOK MATCH #{self.lobby_id} - READY TO PLAY",
+                    description=(
+                        f"🎮 **Карта:** `{final_map}`\n\n"
+                        f"🔵 **Команда 1 (Капитан <@{self.cap1}>):**\n{t1_mentions}\n\n"
+                        f"🔴 **Команда 2 (Капитан <@{self.cap2}>):**\n{t2_mentions}\n\n"
+                        f"🚀 **Серверге қосылу пәрмені (Connect IP):**\n"
+                        f"```\n{SERVER_CONNECT_IP}\n```\n"
+                        f"Баршаңызға сәттілік!"
+                    ),
+                    color=discord.Color.green()
+                )
+                await interaction.response.edit_message(embed=embed, view=None)
+            else:
+                embed = discord.Embed(
+                    title=f"🗺️ CYBERSHOK MAP VETO (Матч #{self.lobby_id})",
+                    description=(
+                        f"🚫 **<@{interaction.user.id}>** картаны алып тастады (BAN): `{map_name}`\n\n"
+                        f"Кезекті бан жасайтын капитан: <@{next_turn}>\n"
+                        f"Қалған карталар: {', '.join([f'`{m}`' for m in self.maps])}"
+                    ),
+                    color=discord.Color.gold()
+                )
+                next_view = CybershokMapVetoView(self.lobby_id, self.cap1, self.cap2, self.maps, next_turn, self.team1, self.team2)
+                await interaction.response.edit_message(embed=embed, view=next_view)
+
+        return callback
+
+
+# --------------------------------------------------
+# PLAYER PICK VIEW (CYBERSHOK CAPTAIN PICK)
+# --------------------------------------------------
+class CybershokPlayerPickView(View):
+    def __init__(self, lobby_id: int, cap1: int, cap2: int, available_players: list, team1: list, team2: list, current_turn: int):
+        super().__init__(timeout=None)
+        self.lobby_id = lobby_id
+        self.cap1 = cap1
+        self.cap2 = cap2
+        self.available_players = available_players
+        self.team1 = team1
+        self.team2 = team2
+        self.turn = current_turn
+
+        for uid in self.available_players:
+            btn = Button(label=f"Пик: {uid}", style=discord.ButtonStyle.primary, custom_id=f"cb_pick_{uid}_{lobby_id}")
+            btn.callback = self.make_pick_callback(uid)
+            self.add_item(btn)
+
+    def make_pick_callback(self, picked_uid: int):
+        async def callback(interaction: discord.Interaction):
+            if interaction.user.id != self.turn:
+                return await interaction.response.send_message("❌ Қазір сіз таңдайтын кезек емес!", ephemeral=True)
+
+            self.available_players.remove(picked_uid)
+
+            if self.turn == self.cap1:
+                self.team1.append(picked_uid)
+                next_turn = self.cap2
+            else:
+                self.team2.append(picked_uid)
+                next_turn = self.cap1
+
+            if len(self.available_players) == 1:
+                # Соңғы ойыншыны автоматты түрде басқа командаға қосу
+                last_p = self.available_players.pop(0)
+                if next_turn == self.cap1:
+                    self.team1.append(last_p)
+                else:
+                    self.team2.append(last_p)
+
+                # Ойыншылар жиналды -> MAP VETO СТАДИЯСЫНА ӨТУ
+                embed = discord.Embed(
+                    title=f"🗺️ CYBERSHOK MAP VETO (Матч #{self.lobby_id})",
+                    description=(
+                        f"✅ Ойыншылар таңдалып бітті!\n\n"
+                        f"Бан бастайтын капитан: <@{self.cap1}>\n"
+                        f"Қолжетімді карталар: {', '.join([f'`{m}`' for m in CYBERSHOK_MAPS])}"
+                    ),
+                    color=discord.Color.gold()
+                )
+                veto_view = CybershokMapVetoView(self.lobby_id, self.cap1, self.cap2, CYBERSHOK_MAPS.copy(), self.cap1, self.team1, self.team2)
+                await interaction.response.edit_message(embed=embed, view=veto_view)
+            else:
+                t1_str = "\n".join([f"• <@{uid}>" for uid in self.team1])
+                t2_str = "\n".join([f"• <@{uid}>" for uid in self.team2])
+                avail_str = "\n".join([f"• <@{uid}>" for uid in self.available_players])
+
+                embed = discord.Embed(
+                    title=f"👥 CYBERSHOK CAPTAIN PICK (Матч #{self.lobby_id})",
+                    description=(
+                        f"🔵 **Команда 1 (<@{self.cap1}>):**\n{t1_str}\n\n"
+                        f"🔴 **Команда 2 (<@{self.cap2}>):**\n{t2_str}\n\n"
+                        f"📋 **Қалған таңдаусыз ойыншылар:**\n{avail_str}\n\n"
+                        f"Кезекті таңдайтын капитан: <@{next_turn}>"
+                    ),
+                    color=discord.Color.blue()
+                )
+                next_view = CybershokPlayerPickView(self.lobby_id, self.cap1, self.cap2, self.available_players, self.team1, self.team2, next_turn)
+                await interaction.response.edit_message(embed=embed, view=next_view)
+
+        return callback
+
+
+# --------------------------------------------------
+# QUEUE LOBBY (5x5 CYBERSHOK SYSTEM)
 # --------------------------------------------------
 class QueueLobbyView(View):
     def __init__(self, lobby_id: int):
@@ -128,11 +270,10 @@ class QueueLobbyView(View):
         players_list = "\n".join([f"{i+1}. <@{uid}>" for i, uid in enumerate(lobby["players"])])
 
         embed = discord.Embed(
-            title=f"⚔️ Создание лобби #{self.lobby_id} ({lobby['mode']})",
+            title=f"⚔️ CYBERSHOK 5x5 MATCH #{self.lobby_id} ({lobby['mode']})",
             description=(
-                f"**Ожидание подключения игроков ({count}/10)**\n\n"
-                f"**Участники:**\n{players_list}\n\n"
-                f"• Подключение к серверу:\n`connect connect.alashproject.kz`"
+                f"**Ожидание игроков ({count}/10)**\n\n"
+                f"**Участники:**\n{players_list}"
             ),
             color=discord.Color.blue()
         )
@@ -143,7 +284,7 @@ class QueueLobbyView(View):
 
         await interaction.response.send_message(f"✅ Сіз лоббиге қосылдыңыз! ({count}/10)", ephemeral=True)
 
-        # 10 Ойыншы жиналған кезде автоматты түрде Войс пен Чат ашу
+        # 10 Ойыншы жыйылганда Капитандарды сайлап, PICK CAPTAIN СТАДИЯСЫН БАСТАУ
         if count == 10:
             guild = interaction.guild
             category = discord.utils.get(guild.categories, name="⚔️ 5X5 MIX MATCHES")
@@ -154,19 +295,32 @@ class QueueLobbyView(View):
             team1_vc = await guild.create_voice_channel(name=f"🔊│Команда #1 [{self.lobby_id}]", category=category, user_limit=5)
             team2_vc = await guild.create_voice_channel(name=f"🔊│Команда #2 [{self.lobby_id}]", category=category, user_limit=5)
 
+            all_players = lobby["players"].copy()
+            random.shuffle(all_players)
+
+            cap1 = all_players.pop(0)
+            cap2 = all_players.pop(0)
+
+            team1 = [cap1]
+            team2 = [cap2]
+
             pings = " ".join([f"<@{uid}>" for uid in lobby["players"]])
             
-            match_embed = discord.Embed(
-                title=f"🚀 Матч #{self.lobby_id} дайын!",
+            avail_str = "\n".join([f"• <@{uid}>" for uid in all_players])
+
+            pick_embed = discord.Embed(
+                title=f"👥 CYBERSHOK CAPTAIN PICK (Матч #{self.lobby_id})",
                 description=(
-                    f"**Ойыншылар дайын! Төмендегі голосовой каналдарға өтіңіздер:**\n"
-                    f"• Войс Команда 1: {team1_vc.mention}\n"
-                    f"• Войс Команда 2: {team2_vc.mention}\n\n"
-                    f"**Серверге қосылу IP:**\n`connect connect.alashproject.kz`"
+                    f"👑 **Капитан 1:** <@{cap1}>\n"
+                    f"👑 **Капитан 2:** <@{cap2}>\n\n"
+                    f"📋 **Таңдау күтіп тұрған ойыншылар:**\n{avail_str}\n\n"
+                    f"**Капитан 1 (<@{cap1}>) бірінші болып ойыншы таңдайды!**"
                 ),
-                color=discord.Color.green()
+                color=discord.Color.gold()
             )
-            await text_ch.send(content=f"🔔 {pings}", embed=match_embed)
+
+            pick_view = CybershokPlayerPickView(self.lobby_id, cap1, cap2, all_players, team1, team2, current_turn=cap1)
+            await text_ch.send(content=f"🔔 {pings}", embed=pick_embed, view=pick_view)
 
     @discord.ui.button(label="Покинуть", style=discord.ButtonStyle.danger, custom_id="mix_queue_leave")
     async def leave_queue(self, interaction: discord.Interaction, button: Button):
@@ -187,11 +341,10 @@ class QueueLobbyView(View):
         players_list = "\n".join([f"{i+1}. <@{uid}>" for i, uid in enumerate(lobby["players"])])
 
         embed = discord.Embed(
-            title=f"⚔️ Создание лобби #{self.lobby_id} ({lobby['mode']})",
+            title=f"⚔️ CYBERSHOK 5x5 MATCH #{self.lobby_id} ({lobby['mode']})",
             description=(
-                f"**Ожидание подключения игроков ({count}/10)**\n\n"
-                f"**Участники:**\n{players_list}\n\n"
-                f"• Подключение к серверу:\n`connect connect.alashproject.kz`"
+                f"**Ожидание игроков ({count}/10)**\n\n"
+                f"**Участники:**\n{players_list}"
             ),
             color=discord.Color.blue()
         )
@@ -213,11 +366,10 @@ class MixLobbyView(View):
         lobby_id = len(active_lobbies) + 1
 
         embed = discord.Embed(
-            title=f"⚔️ Создание лобби #{lobby_id} ({mode})",
+            title=f"⚔️ CYBERSHOK 5x5 MATCH #{lobby_id} ({mode})",
             description=(
-                f"**Ожидание подключения игроков (1/10)**\n\n"
-                f"**Участники:**\n1. {user.mention}\n\n"
-                f"• Подключение к серверу:\n`connect connect.alashproject.kz`"
+                f"**Ожидание игроков (1/10)**\n\n"
+                f"**Участники:**\n1. {user.mention}"
             ),
             color=discord.Color.blue()
         )
