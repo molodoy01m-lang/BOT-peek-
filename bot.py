@@ -102,61 +102,105 @@ def has_staff_permission(member: discord.Member, channel_name: str) -> bool:
 
 
 # --------------------------------------------------
-# 5x5 MIX ЛОББИ ЖҮЙЕСІ ЖӘНЕ ВОЙС АРНАЛАР
+# 5x5 MIX ЛОББИ ЖҮЙЕСІ (VOIN PRO СТИЛІНДЕ)
 # --------------------------------------------------
-class MixLobbyControlView(View):
-    def __init__(self, lobby_id):
+class QueueLobbyView(View):
+    def __init__(self, lobby_id: int):
         super().__init__(timeout=None)
         self.lobby_id = lobby_id
 
-    @discord.ui.button(label="Присоединиться", style=discord.ButtonStyle.success, custom_id="mix_join_btn")
-    async def join_lobby(self, interaction: discord.Interaction, button: Button):
+    @discord.ui.button(label="Присоединиться", style=discord.ButtonStyle.success, custom_id="mix_queue_join")
+    async def join_queue(self, interaction: discord.Interaction, button: Button):
         lobby = active_lobbies.get(self.lobby_id)
         if not lobby:
-            return await interaction.response.send_message("❌ Лобби табылмады.", ephemeral=True)
-        
+            return await interaction.response.send_message("❌ Лобби табылмады немесе жойылған.", ephemeral=True)
+
         user = interaction.user
         if user.id in lobby["players"]:
-            return await interaction.response.send_message("❌ Сез монда инде бар!", ephemeral=True)
+            return await interaction.response.send_message("❌ Сіз бұл лоббиде барсыз!", ephemeral=True)
 
         if len(lobby["players"]) >= 10:
-            return await interaction.response.send_message("❌ Лобби тулы (10/10)!", ephemeral=True)
+            return await interaction.response.send_message("❌ Лобби толып кетті (10/10)!", ephemeral=True)
 
         lobby["players"].append(user.id)
         count = len(lobby["players"])
-        
-        text_ch = interaction.guild.get_channel(lobby["text_ch"])
-        if text_ch:
-            await text_ch.edit(name=f"⚔️│лобби-{self.lobby_id}-[{count}-10]")
+
+        players_list = "\n".join([f"{i+1}. <@{uid}>" for i, uid in enumerate(lobby["players"])])
 
         embed = discord.Embed(
-            title=f"⚔️ Лобби #{self.lobby_id} ({lobby['mode']})",
-            description=f"**Игроки ({count}/10):**\n" + "\n".join([f"• <@{uid}>" for uid in lobby["players"]]),
+            title=f"⚔️ Создание лобби #{self.lobby_id} ({lobby['mode']})",
+            description=(
+                f"**Ожидание подключения игроков ({count}/10)**\n\n"
+                f"**Участники:**\n{players_list}\n\n"
+                f"• Подключение к серверу:\n`connect connect.alashproject.kz`"
+            ),
             color=discord.Color.blue()
         )
-        await interaction.response.send_message(f"✅ {user.mention} лоббига кушылды!", embed=embed)
 
+        msg = lobby.get("message")
+        if msg:
+            await msg.edit(embed=embed, view=self)
+
+        await interaction.response.send_message(f"✅ Сіз лоббиге қосылдыңыз! ({count}/10)", ephemeral=True)
+
+        # 10 Ойыншы жиналған кезде автоматты түрде Войс пен Чат ашу
         if count == 10:
-            await text_ch.send(
-                "🚀 **Лобби жиналды! Матч башланырга әзер.**\n"
-                "Голосовой каналга керегез һәм серверга тоташыгыз:\n"
-                "```connect connect.alashproject.kz```"
-            )
+            guild = interaction.guild
+            category = discord.utils.get(guild.categories, name="⚔️ 5X5 MIX MATCHES")
+            if not category:
+                category = await guild.create_category(name="⚔️ 5X5 MIX MATCHES")
 
-    @discord.ui.button(label="Покинуть", style=discord.ButtonStyle.danger, custom_id="mix_leave_btn")
-    async def leave_lobby(self, interaction: discord.Interaction, button: Button):
+            text_ch = await guild.create_text_channel(name=f"⚔️│матч-{self.lobby_id}", category=category)
+            team1_vc = await guild.create_voice_channel(name=f"🔊│Команда #1 [{self.lobby_id}]", category=category, user_limit=5)
+            team2_vc = await guild.create_voice_channel(name=f"🔊│Команда #2 [{self.lobby_id}]", category=category, user_limit=5)
+
+            pings = " ".join([f"<@{uid}>" for uid in lobby["players"]])
+            
+            match_embed = discord.Embed(
+                title=f"🚀 Матч #{self.lobby_id} дайын!",
+                description=(
+                    f"**Ойыншылар дайын! Төмендегі голосовой каналдарға өтіңіздер:**\n"
+                    f"• Войс Команда 1: {team1_vc.mention}\n"
+                    f"• Войс Команда 2: {team2_vc.mention}\n\n"
+                    f"**Серверге қосылу IP:**\n`connect connect.alashproject.kz`"
+                ),
+                color=discord.Color.green()
+            )
+            await text_ch.send(content=f"🔔 {pings}", embed=match_embed)
+
+    @discord.ui.button(label="Покинуть", style=discord.ButtonStyle.danger, custom_id="mix_queue_leave")
+    async def leave_queue(self, interaction: discord.Interaction, button: Button):
         lobby = active_lobbies.get(self.lobby_id)
         if not lobby or interaction.user.id not in lobby["players"]:
-            return await interaction.response.send_message("❌ Сез бу лоббида юк.", ephemeral=True)
+            return await interaction.response.send_message("❌ Сіз бұл лоббиде жоқсыз.", ephemeral=True)
 
         lobby["players"].remove(interaction.user.id)
         count = len(lobby["players"])
-        
-        text_ch = interaction.guild.get_channel(lobby["text_ch"])
-        if text_ch:
-            await text_ch.edit(name=f"⚔️│лобби-{self.lobby_id}-[{count}-10]")
 
-        await interaction.response.send_message(f"🚪 {interaction.user.mention} лоббидан чыкты. (Уенчылар: {count}/10)")
+        if count == 0:
+            msg = lobby.get("message")
+            if msg:
+                await msg.delete()
+            del active_lobbies[self.lobby_id]
+            return await interaction.response.send_message("🚪 Лоббиде ешкім қалмаған соң жойылды.", ephemeral=True)
+
+        players_list = "\n".join([f"{i+1}. <@{uid}>" for i, uid in enumerate(lobby["players"])])
+
+        embed = discord.Embed(
+            title=f"⚔️ Создание лобби #{self.lobby_id} ({lobby['mode']})",
+            description=(
+                f"**Ожидание подключения игроков ({count}/10)**\n\n"
+                f"**Участники:**\n{players_list}\n\n"
+                f"• Подключение к серверу:\n`connect connect.alashproject.kz`"
+            ),
+            color=discord.Color.blue()
+        )
+
+        msg = lobby.get("message")
+        if msg:
+            await msg.edit(embed=embed, view=self)
+
+        await interaction.response.send_message("🚪 Сіз лоббиден шықтыңыз.", ephemeral=True)
 
 
 class MixLobbyView(View):
@@ -164,66 +208,46 @@ class MixLobbyView(View):
         super().__init__(timeout=None)
         self.add_item(Button(label="alashproject.kz", emoji="🌐", url="https://alashproject.kz/", row=0))
 
-    async def create_mix_channels(self, interaction: discord.Interaction, mode: str, is_private: bool):
-        await interaction.response.defer(ephemeral=True)
-        guild = interaction.guild
+    async def start_queue_lobby(self, interaction: discord.Interaction, mode: str):
         user = interaction.user
-
         lobby_id = len(active_lobbies) + 1
-        
-        category = discord.utils.get(guild.categories, name="⚔️ 5X5 MIX MATCHES")
-        if not category:
-            category = await guild.create_category(name="⚔️ 5X5 MIX MATCHES")
 
-        overwrites = {
-            guild.default_role: discord.PermissionOverwrite(read_messages=not is_private, connect=not is_private),
-            user: discord.PermissionOverwrite(read_messages=True, send_messages=True, connect=True)
-        }
+        embed = discord.Embed(
+            title=f"⚔️ Создание лобби #{lobby_id} ({mode})",
+            description=(
+                f"**Ожидание подключения игроков (1/10)**\n\n"
+                f"**Участники:**\n1. {user.mention}\n\n"
+                f"• Подключение к серверу:\n`connect connect.alashproject.kz`"
+            ),
+            color=discord.Color.blue()
+        )
 
-        text_ch = await guild.create_text_channel(name=f"⚔️│лобби-{lobby_id}-[1-10]", category=category, overwrites=overwrites)
-        team1_vc = await guild.create_voice_channel(name=f"🔊│Команда #1 [{lobby_id}]", category=category, user_limit=5)
-        team2_vc = await guild.create_voice_channel(name=f"🔊│Команда #2 [{lobby_id}]", category=category, user_limit=5)
+        view = QueueLobbyView(lobby_id)
+        await interaction.response.send_message(embed=embed, view=view)
+        msg = await interaction.original_response()
 
         active_lobbies[lobby_id] = {
             "owner": user.id,
             "mode": mode,
             "players": [user.id],
-            "text_ch": text_ch.id,
-            "team1_vc": team1_vc.id,
-            "team2_vc": team2_vc.id
+            "message": msg
         }
-
-        embed = discord.Embed(
-            title=f"🎮 Создано лобби #{lobby_id} ({mode})",
-            description=(
-                f"• **Основатель:** {user.mention}\n"
-                f"• **Режим:** {mode}\n"
-                f"• **Чат:** {text_ch.mention}\n"
-                f"• **Войс Команда 1:** {team1_vc.mention}\n"
-                f"• **Войс Команда 2:** {team2_vc.mention}\n\n"
-                f"• **Серверга тоташу (Connect IP):**\n`connect connect.alashproject.kz`\n\n"
-                f"Катнашу өчен **Присоединиться** төймәсенә басыгыз!"
-            ),
-            color=discord.Color.green()
-        )
-        await text_ch.send(content=f"{user.mention} лобби төзеде!", embed=embed, view=MixLobbyControlView(lobby_id))
-        await interaction.followup.send(f"✅ Лобби төзелде! Чатыгыз: {text_ch.mention}", ephemeral=True)
 
     @discord.ui.button(label="Создать 5x5 FreePick", style=discord.ButtonStyle.primary, custom_id="mix_freepick_open", row=1)
     async def freepick_btn(self, interaction: discord.Interaction, button: Button):
-        await self.create_mix_channels(interaction, "5x5 FreePick", is_private=False)
+        await self.start_queue_lobby(interaction, "5x5 FreePick")
 
     @discord.ui.button(label="Закрытое 5x5 FreePick", style=discord.ButtonStyle.secondary, custom_id="mix_freepick_close", row=1)
     async def freepick_close_btn(self, interaction: discord.Interaction, button: Button):
-        await self.create_mix_channels(interaction, "Закрытое 5x5 FreePick", is_private=True)
+        await self.start_queue_lobby(interaction, "Закрытое 5x5 FreePick")
 
     @discord.ui.button(label="Создать 5x5 Автобаланс", style=discord.ButtonStyle.primary, custom_id="mix_autobalance_open", row=2)
     async def autobalance_btn(self, interaction: discord.Interaction, button: Button):
-        await self.create_mix_channels(interaction, "5x5 Автобаланс", is_private=False)
+        await self.start_queue_lobby(interaction, "5x5 Автобаланс")
 
     @discord.ui.button(label="Закрытое 5x5 Автобаланс", style=discord.ButtonStyle.secondary, custom_id="mix_autobalance_close", row=2)
     async def autobalance_close_btn(self, interaction: discord.Interaction, button: Button):
-        await self.create_mix_channels(interaction, "Закрытое 5x5 Автобаланс", is_private=True)
+        await self.start_queue_lobby(interaction, "Закрытое 5x5 Автобаланс")
 
     @discord.ui.button(label="Получить роль", style=discord.ButtonStyle.success, custom_id="mix_get_role", row=3)
     async def get_role_btn(self, interaction: discord.Interaction, button: Button):
@@ -235,14 +259,14 @@ class MixLobbyView(View):
             try:
                 role = await guild.create_role(name="5x5 MIX", color=discord.Color.purple(), reason="Авто-создание роли MIX")
             except Exception as e:
-                return await interaction.response.send_message(f"❌ Ошибка создания роли: {e}", ephemeral=True)
+                return await interaction.response.send_message(f"❌ Рольді құруда қателік: {e}", ephemeral=True)
 
         if role in user.roles:
             await user.remove_roles(role)
-            await interaction.response.send_message("➖ С вас снята роль **5x5 MIX**.", ephemeral=True)
+            await interaction.response.send_message("➖ Сізден **5x5 MIX** ролі алынды.", ephemeral=True)
         else:
             await user.add_roles(role)
-            await interaction.response.send_message("✅ Вам успешно выдана роль **5x5 MIX**!", ephemeral=True)
+            await interaction.response.send_message("✅ Сізге **5x5 MIX** ролі табысталды!", ephemeral=True)
 
 
 # --------------------------------------------------
