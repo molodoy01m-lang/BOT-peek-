@@ -43,7 +43,7 @@ LEVEL_CHANNEL_ID = 1498243470513405992
 CLAN_LOG_CHANNEL_ID = 1558250408617443398 
 SERVER_LOG_CHANNEL_ID = 1535037929163063548 
 
-# Серверге кошулуу IP
+# Убактылуу Connect IP (Сервериңиз даяр болгондо IP:PORT кошосуз)
 SERVER_CONNECT_IP = "connect connect.alashproject.kz"
 
 user_levels = {}
@@ -203,14 +203,12 @@ class CybershokPlayerPickView(View):
                 next_turn = self.cap1
 
             if len(self.available_players) == 1:
-                # Соңғы ойыншыны автоматты түрде басқа командаға қосу
                 last_p = self.available_players.pop(0)
                 if next_turn == self.cap1:
                     self.team1.append(last_p)
                 else:
                     self.team2.append(last_p)
 
-                # Ойыншылар жиналды -> MAP VETO СТАДИЯСЫНА ӨТУ
                 embed = discord.Embed(
                     title=f"🗺️ CYBERSHOK MAP VETO (Матч #{self.lobby_id})",
                     description=(
@@ -284,7 +282,6 @@ class QueueLobbyView(View):
 
         await interaction.response.send_message(f"✅ Сіз лоббиге қосылдыңыз! ({count}/10)", ephemeral=True)
 
-        # 10 Ойыншы жыйылганда Капитандарды сайлап, PICK CAPTAIN СТАДИЯСЫН БАСТАУ
         if count == 10:
             guild = interaction.guild
             category = discord.utils.get(guild.categories, name="⚔️ 5X5 MIX MATCHES")
