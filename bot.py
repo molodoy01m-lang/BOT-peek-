@@ -709,8 +709,8 @@ class InviteUserSelect(View):
         if not clan:
             return await interaction.response.send_message("❌ Ваш клан не найден.", ephemeral=True)
 
-        if len(clan["members"]) >= 5:
-            return await interaction.response.send_message("❌ В клане уже максимальное количество участников (5/5).", ephemeral=True)
+        if len(clan["members"]) >= 10:
+            return await interaction.response.send_message("❌ В клане уже максимальное количество участников (10/10).", ephemeral=True)
 
         if target_member.id in clan["members"]:
             return await interaction.response.send_message("❌ Этот игрок уже состоит в вашем клане.", ephemeral=True)
@@ -962,13 +962,16 @@ class CreateClanModal(Modal, title="Создание клана"):
 
 
 class ClanPanelView(View):
-    def __init__(self): super().__init__(timeout=None)
+    def __init__(self):
+        super().__init__(timeout=None)
+        # Сайт сілтемесін батырма қылып қосу
+        self.add_item(Button(label="alashproject.kz", emoji="🌐", url="https://alashproject.kz/", row=0))
 
-    @discord.ui.button(label="Создать клан", style=discord.ButtonStyle.primary, custom_id="create_clan_btn_alash")
+    @discord.ui.button(label="Создать клан", style=discord.ButtonStyle.primary, custom_id="create_clan_btn_alash", row=1)
     async def create_clan(self, interaction: discord.Interaction, button: Button):
         await interaction.response.send_modal(CreateClanModal())
 
-    @discord.ui.button(label="Рейтинг кланов", style=discord.ButtonStyle.secondary, custom_id="clan_rating_btn_alash")
+    @discord.ui.button(label="Рейтинг кланов", style=discord.ButtonStyle.secondary, custom_id="clan_rating_btn_alash", row=1)
     async def clan_rating(self, interaction: discord.Interaction, button: Button):
         if not clans_db:
             return await interaction.response.send_message("🏆 Рейтинг кланов пуст.", ephemeral=True)
@@ -981,7 +984,7 @@ class ClanPanelView(View):
         embed = discord.Embed(title="🏆 Рейтинг кланов", description=desc, color=discord.Color.gold())
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
-    @discord.ui.button(label="Мой клан", style=discord.ButtonStyle.secondary, custom_id="my_clan_btn_alash")
+    @discord.ui.button(label="Мой клан", style=discord.ButtonStyle.secondary, custom_id="my_clan_btn_alash", row=1)
     async def my_clan(self, interaction: discord.Interaction, button: Button):
         user_id = interaction.user.id
         clan_owner_id = user_clan_mapping.get(user_id)
@@ -1004,7 +1007,7 @@ class ClanPanelView(View):
                 f"• **Очки:** {clan['score']}\n"
                 f"• **Чат:** {text_ch.mention if text_ch else 'Удален'}\n"
                 f"• **Войс:** {voice_ch.mention if voice_ch else 'Удален'}\n\n"
-                f"• **Участники ({len(clan['members'])}/5):**\n{members_list}"
+                f"• **Участники ({len(clan['members'])}/10):**\n{members_list}"
             ),
             color=discord.Color.blue()
         )
