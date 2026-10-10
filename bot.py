@@ -755,18 +755,84 @@ class InviteUserSelect(View):
         await interaction.response.send_message(f"✅ Игрок {target_member.mention} успешно добавлен в клан и получил роль!", ephemeral=True)
 
 
+class KickUserSelect(View):
+    def __init__(self, clan_owner_id):
+        super().__init__(timeout=60)
+        self.clan_owner_id = clan_owner_id
+
+    @discord.ui.select(cls=UserSelect, placeholder="Выберите игрока для исключения...")
+    async def select_user(self, interaction: discord.Interaction, select: UserSelect):
+        target_member = select.values[0]
+        clan = clans_db.get(self.clan_owner_id)
+        guild = interaction.guild
+
+        if not clan:
+            return await interaction.response.send_message("❌ Ваш клан не найден.", ephemeral=True)
+
+        if target_member.id == self.clan_owner_id:
+            return await interaction.response.send_message("❌ Вы не можете исключить самого себя как лидера!", ephemeral=True)
+
+        if target_member.id not in clan["members"]:
+            return await interaction.response.send_message("❌ Этот игрок не состоит в вашем клане.", ephemeral=True)
+
+        clan["members"].remove(target_member.id)
+        user_clan_mapping.pop(target_member.id, None)
+
+        clan_role = guild.get_role(clan["role_id"])
+        if clan_role:
+            try: await target_member.remove_roles(clan_role)
+            except: pass
+
+        category = guild.get_channel(clan["category"])
+        text_ch = guild.get_channel(clan["text_ch"])
+        voice_ch = guild.get_channel(clan["voice_ch"])
+
+        if category: await category.set_permissions(target_member, overwrite=None)
+        if text_ch: await text_ch.set_permissions(target_member, overwrite=None)
+        if voice_ch: await voice_ch.set_permissions(target_member, overwrite=None)
+
+        tag = clan["tag"]
+        try:
+            current_nick = target_member.display_name
+            if current_nick.startswith(f"[{tag}] "):
+                clean_nick = current_nick[len(tag) + 3:]
+                await target_member.edit(nick=clean_nick)
+        except: pass
+
+        await send_custom_log(
+            guild=guild,
+            channel_id=CLAN_LOG_CHANNEL_ID,
+            emoji="👢",
+            title="Исключение игрока из клана",
+            description_lines=[
+                f"**Участник:** {target_member.name} ({target_member.mention})",
+                f"**Клан:** {clan['name']} (`[{tag}]`)",
+                f"**Исключил лидер:** {interaction.user.name} ({interaction.user.mention})"
+            ],
+            color=discord.Color.orange()
+        )
+
+        await interaction.response.send_message(f"✅ Игрок {target_member.mention} успешно исключен из клана.", ephemeral=True)
+
+
 class ClanManagementView(View):
     def __init__(self, clan_owner_id):
         super().__init__(timeout=None)
         self.clan_owner_id = clan_owner_id
 
-    @discord.ui.button(label="Пригласить игрока", style=discord.ButtonStyle.success, custom_id="clan_invite_btn")
+    @discord.ui.button(label="Пригласить игрока", style=discord.ButtonStyle.success, custom_id="clan_invite_btn", row=0)
     async def invite_btn(self, interaction: discord.Interaction, button: Button):
         if interaction.user.id != self.clan_owner_id:
             return await interaction.response.send_message("❌ Только лидер клана может приглашать участников!", ephemeral=True)
         await interaction.response.send_message("Выберите игрока для добавления в клан:", view=InviteUserSelect(self.clan_owner_id), ephemeral=True)
 
-    @discord.ui.button(label="Распустить клан (Disband)", style=discord.ButtonStyle.danger, custom_id="clan_disband_btn")
+    @discord.ui.button(label="Исключить игрока", style=discord.ButtonStyle.secondary, custom_id="clan_kick_btn", row=0)
+    async def kick_btn(self, interaction: discord.Interaction, button: Button):
+        if interaction.user.id != self.clan_owner_id:
+            return await interaction.response.send_message("❌ Только лидер клана может исключать участников!", ephemeral=True)
+        await interaction.response.send_message("Выберите игрока для исключения из клана:", view=KickUserSelect(self.clan_owner_id), ephemeral=True)
+
+    @discord.ui.button(label="Распустить клан (Disband)", style=discord.ButtonStyle.danger, custom_id="clan_disband_btn", row=1)
     async def disband_btn(self, interaction: discord.Interaction, button: Button):
         if interaction.user.id != self.clan_owner_id:
             return await interaction.response.send_message("❌ Только лидер клана может распустить его!", ephemeral=True)
