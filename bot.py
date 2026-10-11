@@ -10,7 +10,7 @@ from flask import Flask
 from threading import Thread
 
 # --------------------------------------------------
-# WEB SERVER FOR RENDER (Правильный асинхронный запуск)
+# WEB SERVER FOR RENDER 24/7
 # --------------------------------------------------
 app = Flask('')
 
@@ -23,11 +23,11 @@ def run_web():
     app.run(host='0.0.0.0', port=port)
 
 def keep_alive():
-    # daemon=True не дает Flask заблокировать работу Discord бота
     t = Thread(target=run_web, daemon=True)
     t.start()
 
 keep_alive()
+
 # --------------------------------------------------
 # DISCORD BOT SETUP & INTENTS
 # --------------------------------------------------
@@ -704,66 +704,101 @@ class MediaMainView(View):
 
 
 # --------------------------------------------------
-# CLAN SYSTEM (UP TO 10 MEMBERS & KICK FUNCTION)
+# CLAN SYSTEM (WITH INVITE ACCEPT/DECLINE & LEAVE BUTTON)
 # --------------------------------------------------
-class InviteUserSelect(View):
-    def __init__(self, clan_owner_id):
-        super().__init__(timeout=60)
+class ClanInviteAcceptView(View):
+    def __init__(self, clan_owner_id: int, target_user_id: int):
+        super().__init__(timeout=120)
         self.clan_owner_id = clan_owner_id
+        self.target_user_id = target_user_id
 
-    @discord.ui.select(cls=UserSelect, placeholder="Выберите игрока для приглашения...")
-    async def select_user(self, interaction: discord.Interaction, select: UserSelect):
-        target_member = select.values[0]
+    @discord.ui.button(label="Қабылдау", style=discord.ButtonStyle.success, emoji="✅")
+    async def accept_invite(self, interaction: discord.Interaction, button: Button):
+        if interaction.user.id != self.target_user_id:
+            return await interaction.response.send_message("❌ Бұл шақыру сізге арналмаған!", ephemeral=True)
+
         clan = clans_db.get(self.clan_owner_id)
-        guild = interaction.guild
-
         if not clan:
-            return await interaction.response.send_message("❌ Ваш клан не найден.", ephemeral=True)
+            return await interaction.response.send_message("❌ Клан жойылған немесе табылмады.", ephemeral=True)
 
         if len(clan["members"]) >= 10:
-            return await interaction.response.send_message("❌ В клане уже максимальное количество участников (10/10).", ephemeral=True)
+            return await interaction.response.send_message("❌ Клан толып кетті (10/10)!", ephemeral=True)
 
-        if target_member.id in clan["members"]:
-            return await interaction.response.send_message("❌ Этот игрок уже состоит в вашем клане.", ephemeral=True)
+        if interaction.user.id in user_clan_mapping:
+            return await interaction.response.send_message("❌ Сізде қазірдің өзінде клан бар!", ephemeral=True)
 
-        if target_member.id in user_clan_mapping:
-            return await interaction.response.send_message("❌ У этого игрока уже есть клан!", ephemeral=True)
+        clan["members"].append(interaction.user.id)
+        user_clan_mapping[interaction.user.id] = self.clan_owner_id
 
-        clan["members"].append(target_member.id)
-        user_clan_mapping[target_member.id] = self.clan_owner_id
-
+        guild = interaction.guild
         clan_role = guild.get_role(clan["role_id"])
         if clan_role:
-            try: await target_member.add_roles(clan_role)
+            try: await interaction.user.add_roles(clan_role)
             except: pass
 
         category = guild.get_channel(clan["category"])
         text_ch = guild.get_channel(clan["text_ch"])
         voice_ch = guild.get_channel(clan["voice_ch"])
 
-        if category: await category.set_permissions(target_member, read_messages=True, connect=True, view_channel=True)
-        if text_ch: await text_ch.set_permissions(target_member, read_messages=True, send_messages=True)
-        if voice_ch: await voice_ch.set_permissions(target_member, connect=True, speak=True)
+        if category: await category.set_permissions(interaction.user, read_messages=True, connect=True, view_channel=True)
+        if text_ch: await text_ch.set_permissions(interaction.user, read_messages=True, send_messages=True)
+        if voice_ch: await voice_ch.set_permissions(interaction.user, connect=True, speak=True)
 
         try:
-            new_nick = f"[{clan['tag']}] {target_member.display_name}"
-            if len(new_nick) <= 32: await target_member.edit(nick=new_nick)
+            new_nick = f"[{clan['tag']}] {interaction.user.display_name}"
+            if len(new_nick) <= 32: await interaction.user.edit(nick=new_nick)
         except: pass
 
         await send_custom_log(
             guild=guild,
             channel_id=CLAN_LOG_CHANNEL_ID,
             emoji="👥",
-            title="Добавление игрока в клан",
+            title="Ойыншы кланға қосылды",
             description_lines=[
-                f"**Участник:** {target_member.name} ({target_member.mention})",
-                f"**Клан:** {clan['name']} (`[{clan['tag']}]`)",
-                f"**Добавил лидер:** {interaction.user.name} ({interaction.user.mention})"
+                f"**Участник:** {interaction.user.name} ({interaction.user.mention})",
+                f"**Клан:** {clan['name']} (`[{clan['tag']}]`)"
             ],
             color=discord.Color.green()
         )
 
-        await interaction.response.send_message(f"✅ Игрок {target_member.mention} успешно добавлен в клан!", ephemeral=True)
+        await interaction.response.edit_message(content=f"🎉 **{interaction.user.mention}**, сіз **{clan['name']}** кланына сәтті қосылдыңыз!", view=None)
+
+    @discord.ui.button(label="Бас тарту", style=discord.ButtonStyle.danger, emoji="✖️")
+    async def decline_invite(self, interaction: discord.Interaction, button: Button):
+        if interaction.user.id != self.target_user_id:
+            return await interaction.response.send_message("❌ Бұл шақыру сізге арналмаған!", ephemeral=True)
+
+        await interaction.response.edit_message(content=f"❌ **{interaction.user.mention}** шақырудан бас тартты.", view=None)
+
+
+class InviteUserSelect(View):
+    def __init__(self, clan_owner_id):
+        super().__init__(timeout=60)
+        self.clan_owner_id = clan_owner_id
+
+    @discord.ui.select(cls=UserSelect, placeholder="Шақыратын ойыншыны таңдаңыз...")
+    async def select_user(self, interaction: discord.Interaction, select: UserSelect):
+        target_member = select.values[0]
+        clan = clans_db.get(self.clan_owner_id)
+
+        if not clan:
+            return await interaction.response.send_message("❌ Кланыңыз табылмады.", ephemeral=True)
+
+        if len(clan["members"]) >= 10:
+            return await interaction.response.send_message("❌ Кланда максималды ойыншы саны толған (10/10).", ephemeral=True)
+
+        if target_member.id in clan["members"]:
+            return await interaction.response.send_message("❌ Бұл ойыншы кланыңызда бар!", ephemeral=True)
+
+        if target_member.id in user_clan_mapping:
+            return await interaction.response.send_message("❌ Бұл ойыншы басқа кланда бар!", ephemeral=True)
+
+        invite_view = ClanInviteAcceptView(self.clan_owner_id, target_member.id)
+        await interaction.channel.send(
+            content=f"✉️ {target_member.mention}, сізді **{clan['name']}** (`[{clan['tag']}]`) кланына шақырады! Қосылу үшін батырманы басыңыз:",
+            view=invite_view
+        )
+        await interaction.response.send_message(f"✅ {target_member.mention} пайдаланушысына шақыру жіберілді!", ephemeral=True)
 
 
 class KickUserSelect(View):
@@ -897,6 +932,61 @@ class ClanManagementView(View):
         await interaction.response.send_message("🛑 Клан успешно распущен, роль, категория и каналы удалены.", ephemeral=True)
 
 
+class ClanMemberView(View):
+    def __init__(self, clan_owner_id):
+        super().__init__(timeout=None)
+        self.clan_owner_id = clan_owner_id
+
+    @discord.ui.button(label="Покинуть клан", style=discord.ButtonStyle.danger, custom_id="clan_leave_btn", emoji="🚪")
+    async def leave_clan_btn(self, interaction: discord.Interaction, button: Button):
+        user_id = interaction.user.id
+        if user_id == self.clan_owner_id:
+            return await interaction.response.send_message("❌ Клан лидері кланнан шыға алмайды!", ephemeral=True)
+
+        clan = clans_db.get(self.clan_owner_id)
+        if not clan or user_id not in clan["members"]:
+            return await interaction.response.send_message("❌ Сіз бұл кланда жоқсыз.", ephemeral=True)
+
+        clan["members"].remove(user_id)
+        user_clan_mapping.pop(user_id, None)
+
+        guild = interaction.guild
+        clan_role = guild.get_role(clan["role_id"])
+        if clan_role:
+            try: await interaction.user.remove_roles(clan_role)
+            except: pass
+
+        category = guild.get_channel(clan["category"])
+        text_ch = guild.get_channel(clan["text_ch"])
+        voice_ch = guild.get_channel(clan["voice_ch"])
+
+        if category: await category.set_permissions(interaction.user, overwrite=None)
+        if text_ch: await text_ch.set_permissions(interaction.user, overwrite=None)
+        if voice_ch: await voice_ch.set_permissions(interaction.user, overwrite=None)
+
+        tag = clan["tag"]
+        try:
+            current_nick = interaction.user.display_name
+            if current_nick.startswith(f"[{tag}] "):
+                clean_nick = current_nick[len(tag) + 3:]
+                await interaction.user.edit(nick=clean_nick)
+        except: pass
+
+        await send_custom_log(
+            guild=guild,
+            channel_id=CLAN_LOG_CHANNEL_ID,
+            emoji="🚪",
+            title="Ойыншы кланнан шықты",
+            description_lines=[
+                f"**Ойыншы:** {interaction.user.name} ({interaction.user.mention})",
+                f"**Клан:** {clan['name']} (`[{tag}]`)"
+            ],
+            color=discord.Color.orange()
+        )
+
+        await interaction.response.send_message(f"🚪 Сіз **{clan['name']}** кланынан сәтті шықтыңыз.", ephemeral=True)
+
+
 class CreateClanModal(Modal, title="Создание клана"):
     clan_name = TextInput(label="Название клана", placeholder="Введите название...", required=True, max_length=50)
     clan_tag = TextInput(label="Тег клана", placeholder="Введите тег...", required=True, max_length=10)
@@ -1021,7 +1111,12 @@ class ClanPanelView(View):
             ),
             color=discord.Color.blue()
         )
-        view = ClanManagementView(clan_owner_id) if user_id == clan['owner'] else None
+        
+        if user_id == clan['owner']:
+            view = ClanManagementView(clan_owner_id)
+        else:
+            view = ClanMemberView(clan_owner_id)
+
         await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
 
 
@@ -1358,14 +1453,12 @@ async def send_clan(ctx):
 raw_token = os.getenv("DISCORD_TOKEN")
 
 if not raw_token:
-    print("❌ ОШИБКА: Переменная DISCORD_TOKEN не найдена в Environment на Render!")
+    print("❌ КРИТИЧЕСКАЯ ОШИБКА: Переменная DISCORD_TOKEN не найдена в Environment на Render!")
 else:
-    # Очищаем токен от случайных кавычек и пробелов
     token = raw_token.strip().strip('"').strip("'")
     try:
-        print("🚀 Попытка подключения к Discord...")
         bot.run(token)
     except discord.errors.LoginFailure:
-        print("❌ ОШИБКА АВТОРИЗАЦИИ: Неверный DISCORD_TOKEN! Сбросьте токен в Discord Portal.")
+        print("❌ ОШИБКА АВТОРИЗАЦИИ: Неверный DISCORD_TOKEN! Пересоздайте токен в Discord Developer Portal.")
     except Exception as e:
-        print(f"❌ ОШИБКА ЗАПУСКА: {e}")
+        print(f"❌ НЕИЗВЕСТНАЯ ОШИБКА ПРИ ЗАПУСКЕ: {e}")
