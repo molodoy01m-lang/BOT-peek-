@@ -22,7 +22,7 @@ def run_web():
     app.run(host='0.0.0.0', port=8080)
 
 def keep_alive():
-    t = Thread(target=run_web)
+    t = Thread(target=run_web, daemon=True)
     t.start()
 
 keep_alive()
@@ -1047,7 +1047,9 @@ class MyBot(commands.Bot):
             name="alashproject.kz | /help"
         )
         await self.change_presence(activity=activity)
-        print(f"Бот запущен и онлайн: {self.user}")
+        print("==========================================")
+        print(f" БОТ СӘТТІ КӨШІРІЛДІ ЖӘНЕ ОНЛАЙН: {self.user} ")
+        print("==========================================")
 
 bot = MyBot()
 
@@ -1350,6 +1352,17 @@ async def send_clan(ctx):
 
 
 # --------------------------------------------------
-# RUN BOT
+# RUN BOT WITH SAFE TOKEN CHECK
 # --------------------------------------------------
-bot.run(os.getenv("DISCORD_TOKEN"))
+raw_token = os.getenv("DISCORD_TOKEN")
+
+if not raw_token:
+    print("❌ КРИТИЧЕСКАЯ ОШИБКА: Переменная DISCORD_TOKEN не найдена в Environment на Render!")
+else:
+    token = raw_token.strip().strip('"').strip("'")
+    try:
+        bot.run(token)
+    except discord.errors.LoginFailure:
+        print("❌ ОШИБКА АВТОРИЗАЦИИ: Неверный DISCORD_TOKEN! Пересоздайте токен в Discord Developer Portal.")
+    except Exception as e:
+        print(f"❌ НЕИЗВЕСТНАЯ ОШИБКА ПРИ ЗАПУСКЕ: {e}")
