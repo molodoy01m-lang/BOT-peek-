@@ -964,7 +964,6 @@ class CreateClanModal(Modal, title="Создание клана"):
 class ClanPanelView(View):
     def __init__(self):
         super().__init__(timeout=None)
-        # Сайт сілтемесін батырма қылып қосу
         self.add_item(Button(label="alashproject.kz", emoji="🌐", url="https://alashproject.kz/", row=0))
 
     @discord.ui.button(label="Создать клан", style=discord.ButtonStyle.primary, custom_id="create_clan_btn_alash", row=1)
@@ -1167,6 +1166,7 @@ async def on_member_update(before, after):
 
 @bot.event
 async def on_voice_state_update(member, before, after):
+    # Автоматты түрде уақытша войс бөлме ашу (Арна атында 'создать войс' сөзі болса)
     if after.channel and "создать войс" in after.channel.name.lower():
         v_ch = await member.guild.create_voice_channel(name=f"Комната {member.name}", category=after.channel.category)
         await v_ch.set_permissions(member, connect=True, speak=True, manage_channels=True)
