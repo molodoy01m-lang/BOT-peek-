@@ -1042,7 +1042,6 @@ class MyBot(commands.Bot):
         self.add_view(MixLobbyView())
 
     async def on_ready(self):
-        # Статус "Смотрит alashproject.kz | /help"
         activity = discord.Activity(
             type=discord.ActivityType.watching, 
             name="alashproject.kz | /help"
