@@ -9,12 +9,14 @@ from discord.ui import View, Button, Modal, TextInput, UserSelect
 from flask import Flask
 from threading import Thread
 
-# Web-server (чтобы бот работал 24/7 на Render)
+# --------------------------------------------------
+# WEB SERVER FOR RENDER 24/7
+# --------------------------------------------------
 app = Flask('')
 
 @app.route('/')
 def home():
-    return "Bot is alive!"
+    return "ALASH PROJECT BOT is Alive!"
 
 def run_web():
     app.run(host='0.0.0.0', port=8080)
@@ -25,6 +27,9 @@ def keep_alive():
 
 keep_alive()
 
+# --------------------------------------------------
+# DISCORD BOT SETUP & INTENTS
+# --------------------------------------------------
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
@@ -32,28 +37,20 @@ intents.voice_states = True
 intents.moderation = True
 intents.guilds = True
 
-# --------------------------------------------------
-# НАСТРОЙКИ И ID КАНАЛОВ
-# --------------------------------------------------
 AUTO_ROLE_ID = 1555292717830119514
 WELCOME_CHANNEL_ID = 1497873420216439016
 LEVEL_CHANNEL_ID = 1498243470513405992
 
-# Лог каналы
 CLAN_LOG_CHANNEL_ID = 1558250408617443398 
 SERVER_LOG_CHANNEL_ID = 1535037929163063548 
 
-# Connect IP
 SERVER_CONNECT_IP = "connect connect.alashproject.kz"
 
 user_levels = {}
 verified_users = {}
 
-# База кланов
 clans_db = {}
 user_clan_mapping = {}
-
-# База 5x5 MIX Лобби
 active_lobbies = {}
 
 GIRL_BANNER_URL = "https://media.discordapp.net/attachments/1544309714962227230/1557815971660435456/banner_girl.png?ex=6ac92cae&is=6ac7db2e&hm=250e0baedfe61fc5baff21e59e0e6bd61f5e494d88ade315be12b6e3c199c916&=&format=webp&quality=lossless&width=2048&height=729"
@@ -68,9 +65,7 @@ GIRL_STAFF_ROLE_IDS = [1532745811778207985, 1530890552676188301, 153088665753092
 MEDIA_STAFF_ROLE_IDS = [1530888828246556753, 1532745811778207985, 1530886657530925256]
 
 MEDIA_ROLE_ID = 1530924449912586351
-
 temp_voice_channels = {}
-
 CYBERSHOK_MAPS = ["de_mirage", "de_inferno", "de_dust2", "de_nuke", "de_anubis", "de_ancient", "de_vertigo"]
 
 
@@ -108,7 +103,7 @@ def has_staff_permission(member: discord.Member, channel_name: str) -> bool:
 
 
 # --------------------------------------------------
-# MAP VETO (CYBERSHOK BAN) VIEW
+# CYBERSHOK MAP BAN & CAPTAIN PICK VIEWS
 # --------------------------------------------------
 class CybershokMapVetoView(View):
     def __init__(self, lobby_id: int, cap1: int, cap2: int, remaining_maps: list, current_turn: int, team1: list, team2: list):
@@ -136,7 +131,6 @@ class CybershokMapVetoView(View):
 
             if len(self.maps) == 1:
                 final_map = self.maps[0]
-                
                 t1_mentions = "\n".join([f"• <@{uid}>" for uid in self.team1])
                 t2_mentions = "\n".join([f"• <@{uid}>" for uid in self.team2])
 
@@ -169,9 +163,6 @@ class CybershokMapVetoView(View):
         return callback
 
 
-# --------------------------------------------------
-# PLAYER PICK VIEW (CYBERSHOK CAPTAIN PICK)
-# --------------------------------------------------
 class CybershokPlayerPickView(View):
     def __init__(self, lobby_id: int, cap1: int, cap2: int, available_players: list, team1: list, team2: list, current_turn: int):
         super().__init__(timeout=None)
@@ -302,7 +293,6 @@ class QueueLobbyView(View):
             team2 = [cap2]
 
             pings = " ".join([f"<@{uid}>" for uid in lobby["players"]])
-            
             avail_str = "\n".join([f"• <@{uid}>" for uid in all_players])
 
             pick_embed = discord.Embed(
@@ -419,7 +409,7 @@ class MixLobbyView(View):
 
 
 # --------------------------------------------------
-# ГОЛОСОВЫЕ И МОДАЛЫ (VOICE & TICKET & CLAN)
+# PRIVATE VOICE CHANNELS & CONTROLS
 # --------------------------------------------------
 class RenameVoiceModal(Modal, title="Переименовать канал"):
     new_name = TextInput(label="Новое название канала", placeholder="Введите новое название...", required=True, max_length=100)
@@ -538,10 +528,13 @@ class VoiceControlPanel(View):
         await interaction.response.send_message("Выберите кого выгнать:", view=UserActionView("block"), ephemeral=True)
 
 
+# --------------------------------------------------
+# FACEIT VERIFICATION SYSTEM
+# --------------------------------------------------
 class FaceitVerifyView(View):
     def __init__(self):
         super().__init__(timeout=None)
-        self.add_item(Button(label="Верифицироваться", emoji="✅", style=discord.ButtonStyle.success, url="https://www.faceit.com"))
+        self.add_item(Button(label="Верифицироваться", emoji="✅", style=discord.ButtonStyle.success, url="https://alashproject.kz/"))
 
     @discord.ui.button(label="Мой профиль", emoji="👤", style=discord.ButtonStyle.primary, custom_id="faceit_profile_btn")
     async def profile_button(self, interaction: discord.Interaction, button: Button):
@@ -550,11 +543,11 @@ class FaceitVerifyView(View):
             data = verified_users[user_id]
             await interaction.response.send_message(f"👤 Ваш профиль FACEIT:\n• Уровень: **{data['level']}**\n• Steam: **{data['steam']}**", ephemeral=True)
         else:
-            await interaction.response.send_message("❌ Вы еще не прошли FACEIT верификацию!", ephemeral=True)
+            await interaction.response.send_message("❌ Вы еще не прошли FACEIT верификацию на сайте alashproject.kz!", ephemeral=True)
 
     @discord.ui.button(label="Обновить уровень", emoji="🔄", style=discord.ButtonStyle.secondary, custom_id="faceit_refresh_btn")
     async def refresh_button(self, interaction: discord.Interaction, button: Button):
-        await interaction.response.send_message("🔄 Уровень успешно обновлен!", ephemeral=True)
+        await interaction.response.send_message("🔄 Уровень успешно обновлен с сайта alashproject.kz!", ephemeral=True)
 
     @discord.ui.button(label="Сбросить профиль", emoji="🛑", style=discord.ButtonStyle.danger, custom_id="faceit_reset_btn")
     async def reset_button(self, interaction: discord.Interaction, button: Button):
@@ -566,6 +559,9 @@ class FaceitVerifyView(View):
             await interaction.response.send_message("❌ Профиль не найден.", ephemeral=True)
 
 
+# --------------------------------------------------
+# TICKET SYSTEM & MODALS
+# --------------------------------------------------
 class TicketControlView(View):
     def __init__(self, ticket_type: str = "general"):
         super().__init__(timeout=None)
@@ -607,7 +603,11 @@ class GirlTicketMainView(View):
         if discord.utils.get(guild.text_channels, name=ch_name):
             return await interaction.followup.send("У вас уже открыт тикет!", ephemeral=True)
         
-        overwrites = {guild.default_role: discord.PermissionOverwrite(read_messages=False), user: discord.PermissionOverwrite(read_messages=True, send_messages=True), guild.me: discord.PermissionOverwrite(read_messages=True, send_messages=True)}
+        overwrites = {
+            guild.default_role: discord.PermissionOverwrite(read_messages=False), 
+            user: discord.PermissionOverwrite(read_messages=True, send_messages=True), 
+            guild.me: discord.PermissionOverwrite(read_messages=True, send_messages=True)
+        }
         pings = [guild.get_role(r).mention for r in GIRL_STAFF_ROLE_IDS if guild.get_role(r)]
         for r_id in GIRL_STAFF_ROLE_IDS:
             if guild.get_role(r_id): overwrites[guild.get_role(r_id)] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
@@ -638,7 +638,11 @@ class TicketSelectView(View):
         if discord.utils.get(guild.text_channels, name=ch_name):
             return await interaction.followup.send("У вас уже открыт тикет!", ephemeral=True)
 
-        overwrites = {guild.default_role: discord.PermissionOverwrite(read_messages=False), user: discord.PermissionOverwrite(read_messages=True, send_messages=True), guild.me: discord.PermissionOverwrite(read_messages=True, send_messages=True)}
+        overwrites = {
+            guild.default_role: discord.PermissionOverwrite(read_messages=False), 
+            user: discord.PermissionOverwrite(read_messages=True, send_messages=True), 
+            guild.me: discord.PermissionOverwrite(read_messages=True, send_messages=True)
+        }
         pings = [guild.get_role(r).mention for r in STAFF_ROLE_IDS if guild.get_role(r)]
         for r_id in STAFF_ROLE_IDS:
             if guild.get_role(r_id): overwrites[guild.get_role(r_id)] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
@@ -671,7 +675,11 @@ class MediaApplicationModal(Modal, title="Подать заявку на Мед�
         if discord.utils.get(guild.text_channels, name=ch_name):
             return await interaction.followup.send("У вас уже есть медиа тикет!", ephemeral=True)
 
-        overwrites = {guild.default_role: discord.PermissionOverwrite(read_messages=False), user: discord.PermissionOverwrite(read_messages=True, send_messages=True), guild.me: discord.PermissionOverwrite(read_messages=True, send_messages=True)}
+        overwrites = {
+            guild.default_role: discord.PermissionOverwrite(read_messages=False), 
+            user: discord.PermissionOverwrite(read_messages=True, send_messages=True), 
+            guild.me: discord.PermissionOverwrite(read_messages=True, send_messages=True)
+        }
         pings = [guild.get_role(r).mention for r in MEDIA_STAFF_ROLE_IDS if guild.get_role(r)]
         for r_id in MEDIA_STAFF_ROLE_IDS:
             if guild.get_role(r_id): overwrites[guild.get_role(r_id)] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
@@ -694,7 +702,9 @@ class MediaMainView(View):
         await interaction.response.send_modal(MediaApplicationModal())
 
 
-# --- СИСТЕМА КЛАНОВ ---
+# --------------------------------------------------
+# CLAN SYSTEM (UP TO 10 MEMBERS & KICK FUNCTION)
+# --------------------------------------------------
 class InviteUserSelect(View):
     def __init__(self, clan_owner_id):
         super().__init__(timeout=60)
@@ -752,7 +762,7 @@ class InviteUserSelect(View):
             color=discord.Color.green()
         )
 
-        await interaction.response.send_message(f"✅ Игрок {target_member.mention} успешно добавлен в клан и получил роль!", ephemeral=True)
+        await interaction.response.send_message(f"✅ Игрок {target_member.mention} успешно добавлен в клан!", ephemeral=True)
 
 
 class KickUserSelect(View):
@@ -1014,6 +1024,9 @@ class ClanPanelView(View):
         await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
 
 
+# --------------------------------------------------
+# BOT INIT & PRESENCE STATUS
+# --------------------------------------------------
 class MyBot(commands.Bot):
     def __init__(self):
         super().__init__(command_prefix="!", intents=intents)
@@ -1028,11 +1041,20 @@ class MyBot(commands.Bot):
         self.add_view(ClanPanelView())
         self.add_view(MixLobbyView())
 
+    async def on_ready(self):
+        # Статус "Смотрит alashproject.kz | /help"
+        activity = discord.Activity(
+            type=discord.ActivityType.watching, 
+            name="alashproject.kz | /help"
+        )
+        await self.change_presence(activity=activity)
+        print(f"Бот запущен и онлайн: {self.user}")
+
 bot = MyBot()
 
 
 # --------------------------------------------------
-# ЛОГИ И СОБЫТИЯ СЕРВЕРА
+# SERVER EVENTS & AUDIT LOGGING
 # --------------------------------------------------
 @bot.event
 async def on_member_join(member):
@@ -1062,7 +1084,6 @@ async def on_message(message):
     await bot.process_commands(message)
 
 
-# Удаление сообщений
 @bot.event
 async def on_message_delete(message):
     if message.author.bot: return
@@ -1080,7 +1101,6 @@ async def on_message_delete(message):
     )
 
 
-# Бан и разбан
 @bot.event
 async def on_member_ban(guild, user):
     async for entry in guild.audit_logs(limit=1, action=discord.AuditLogAction.ban):
@@ -1098,7 +1118,7 @@ async def on_member_ban(guild, user):
         title="Бан участника",
         description_lines=[
             f"**Участник:** {user.name} ({user.mention})",
-            f"**Забанил:** {moderator.name if moderator else 'Неизвестно'} ({moderator.mention if moderator else 'N/A'})",
+            f"**Забанил:** {moderator.name if moderator else 'Неизвестно'}",
             f"**Причина:** `{reason}`"
         ],
         color=discord.Color.dark_red()
@@ -1120,13 +1140,12 @@ async def on_member_unban(guild, user):
         title="Разбан участника",
         description_lines=[
             f"**Участник:** {user.name} ({user.mention})",
-            f"**Разбанил:** {moderator.name if moderator else 'Неизвестно'} ({moderator.mention if moderator else 'N/A'})"
+            f"**Разбанил:** {moderator.name if moderator else 'Неизвестно'}"
         ],
         color=discord.Color.green()
     )
 
 
-# Мут (Таймаут)
 @bot.event
 async def on_member_update(before, after):
     if before.timed_out_until != after.timed_out_until:
@@ -1146,7 +1165,7 @@ async def on_member_update(before, after):
                 title="Выдан мут (Timeout)",
                 description_lines=[
                     f"**Участник:** {after.name} ({after.mention})",
-                    f"**Модератор:** {moderator.name if moderator else 'Неизвестно'} ({moderator.mention if moderator else 'N/A'})",
+                    f"**Модератор:** {moderator.name if moderator else 'Неизвестно'}",
                     f"**До:** {after.timed_out_until}"
                 ],
                 color=discord.Color.orange()
@@ -1178,14 +1197,12 @@ async def on_voice_state_update(member, before, after):
 
 
 # --------------------------------------------------
-# КОМАНДЫ
+# BOT COMMANDS (!clear & PANEL SETUP)
 # --------------------------------------------------
-
-# Команда очистки сообщений
 @bot.command(name="clear", aliases=["purge", "clean"])
 @commands.has_permissions(manage_messages=True)
 async def clear_messages(ctx, amount: int = 10):
-    """Удаление сообщений (по умолчанию 10)"""
+    """Удаление сообщений (например, !clear 10)"""
     deleted = await ctx.channel.purge(limit=amount + 1)
     confirm_msg = await ctx.send(f"🧹 Успешно удалено **{len(deleted) - 1}** сообщений!")
     await asyncio.sleep(3)
@@ -1201,7 +1218,6 @@ async def clear_messages_error(ctx, error):
 
 @bot.command()
 async def send_mix(ctx):
-    """Вызов меню 5x5 MIX Лобби"""
     embed = discord.Embed(
         title="<a:15770animatedarrowyellow:1503049767016595586> Создание лобби",
         description=(
@@ -1241,7 +1257,24 @@ async def send_verification(ctx):
 
 @bot.command()
 async def send_voice_panel(ctx):
-    embed = discord.Embed(description="# **Управление приватной комнатой**\n\n➕ • Добавить слот\n👤 • Изменить слоты\n🔓 • Открыть канал\n👥 • Добавить пользователя\n🙈 • Скрыть канал\n✏️ • Переименовать канал\n\n➖ • Убрать слот\n👑 • Передать канал\n🔒 • Закрыть канал\n🚫 • Выгнать пользователя\n👁️ • Показать канал\n\n*Кнопки активны в вашем войсе.*", color=discord.Color.dark_grey())
+    embed = discord.Embed(
+        description=(
+            "# **Управление приватной комнатой**\n\n"
+            "➕ • Добавить слот\n"
+            "👤 • Изменить слоты\n"
+            "🔓 • Открыть канал\n"
+            "👥 • Добавить пользователя\n"
+            "🙈 • Скрыть канал\n"
+            "✏️ • Переименовать канал\n\n"
+            "➖ • Убрать слот\n"
+            "👑 • Передать канал\n"
+            "🔒 • Закрыть канал\n"
+            "🚫 • Выгнать пользователя\n"
+            "👁️ • Показать канал\n\n"
+            "*Кнопки активны в вашем войсе.*"
+        ), 
+        color=discord.Color.dark_grey()
+    )
     await ctx.send(embed=embed, view=VoiceControlPanel())
 
 
@@ -1251,7 +1284,13 @@ async def send_girl_ticket(ctx):
     if file:
         img_embed = discord.Embed(color=discord.Color.from_rgb(255, 105, 180)).set_image(url="attachment://banner_girl.png")
         await ctx.send(file=file, embed=img_embed)
-    text_embed = discord.Embed(description="<:18690member:1503151722611347586> **Роль Девушка**\n\n<a:a_pink_dot:1503133833548271646> Нажмите кнопку ниже для создания тикета.", color=discord.Color.from_rgb(255, 105, 180))
+    text_embed = discord.Embed(
+        description=(
+            "<:18690member:1503151722611347586> **Роль Девушка**\n\n"
+            "<a:a_pink_dot:1503133833548271646> Нажмите кнопку ниже для создания тикета."
+        ), 
+        color=discord.Color.from_rgb(255, 105, 180)
+    )
     await ctx.send(embed=text_embed, view=GirlTicketMainView())
 
 
@@ -1261,7 +1300,13 @@ async def send_ticket(ctx):
     if file:
         img_embed = discord.Embed(color=discord.Color.from_rgb(57, 255, 20)).set_image(url="attachment://banner.png")
         await ctx.send(file=file, embed=img_embed)
-    text_embed = discord.Embed(description="<:18690member:1503151722611347586> **Система поддержки ALASH PROJECT KZ**\n\n<a:15770animatedarrowyellow:1503049767016595586> **Возникли вопросы или проблемы? Опишите ситуацию**", color=discord.Color.from_rgb(57, 255, 20))
+    text_embed = discord.Embed(
+        description=(
+            "<:18690member:1503151722611347586> **Система поддержки ALASH PROJECT KZ**\n\n"
+            "<a:15770animatedarrowyellow:1503049767016595586> **Возникли вопросы или проблемы? Опишите ситуацию**"
+        ), 
+        color=discord.Color.from_rgb(57, 255, 20)
+    )
     await ctx.send(embed=text_embed, view=TicketMainView())
 
 
@@ -1271,7 +1316,14 @@ async def send_media(ctx):
     if file:
         img_embed = discord.Embed(color=discord.Color.from_rgb(180, 0, 0)).set_image(url="attachment://banner_media.png")
         await ctx.send(file=file, embed=img_embed)
-    text_embed = discord.Embed(description="<a:a_pink_dot:1503133833548271646> Наш проект готов к сотрудничеству с медиа игроками.\n\n<a:15770animatedarrowyellow:1503049767016595586> **Что вы получите**\n<a:a_pink_dot:1503133833548271646> Роль <@&{MEDIA_ROLE_ID}>".format(MEDIA_ROLE_ID=MEDIA_ROLE_ID), color=discord.Color.from_rgb(180, 0, 0))
+    text_embed = discord.Embed(
+        description=(
+            "<a:a_pink_dot:1503133833548271646> Наш проект готов к сотрудничеству с медиа игроками.\n\n"
+            "<a:15770animatedarrowyellow:1503049767016595586> **Что вы получите**\n"
+            "<a:a_pink_dot:1503133833548271646> Роль <@&{MEDIA_ROLE_ID}>"
+        ).format(MEDIA_ROLE_ID=MEDIA_ROLE_ID), 
+        color=discord.Color.from_rgb(180, 0, 0)
+    )
     await ctx.send(embed=text_embed, view=MediaMainView())
 
 
@@ -1298,4 +1350,7 @@ async def send_clan(ctx):
     await ctx.send(embed=embed, view=ClanPanelView())
 
 
+# --------------------------------------------------
+# RUN BOT
+# --------------------------------------------------
 bot.run(os.getenv("DISCORD_TOKEN"))
