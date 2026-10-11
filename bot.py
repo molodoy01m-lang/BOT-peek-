@@ -747,7 +747,7 @@ class InviteUserSelect(View):
             description_lines=[
                 f"**Участник:** {target_member.name} ({target_member.mention})",
                 f"**Клан:** {clan['name']} (`[{clan['tag']}]`)",
-                f"**Добавил лидера:** {interaction.user.name} ({interaction.user.mention})"
+                f"**Добавил лидер:** {interaction.user.name} ({interaction.user.mention})"
             ],
             color=discord.Color.green()
         )
@@ -1180,6 +1180,25 @@ async def on_voice_state_update(member, before, after):
 # --------------------------------------------------
 # КОМАНДЫ
 # --------------------------------------------------
+
+# Команда очистки сообщений
+@bot.command(name="clear", aliases=["purge", "clean"])
+@commands.has_permissions(manage_messages=True)
+async def clear_messages(ctx, amount: int = 10):
+    """Удаление сообщений (по умолчанию 10)"""
+    deleted = await ctx.channel.purge(limit=amount + 1)
+    confirm_msg = await ctx.send(f"🧹 Успешно удалено **{len(deleted) - 1}** сообщений!")
+    await asyncio.sleep(3)
+    await confirm_msg.delete()
+
+@clear_messages.error
+async def clear_messages_error(ctx, error):
+    if isinstance(error, commands.MissingPermissions):
+        await ctx.send("❌ У вас нет прав для удаления сообщений (`Manage Messages`).", delete_after=5)
+    elif isinstance(error, commands.BadArgument):
+        await ctx.send("❌ Укажите число сообщений. Пример: `!clear 10`", delete_after=5)
+
+
 @bot.command()
 async def send_mix(ctx):
     """Вызов меню 5x5 MIX Лобби"""
