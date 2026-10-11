@@ -9,20 +9,18 @@ from discord.ui import View, Button, Modal, TextInput, UserSelect
 from flask import Flask
 from threading import Thread
 
-# --------------------------------------------------
-# WEB SERVER FOR RENDER 24/7
-# --------------------------------------------------
+# Web-server (чтобы бот работал 24/7 на Render)
 app = Flask('')
 
 @app.route('/')
 def home():
-    return "ALASH PROJECT BOT is Alive!"
+    return "Bot is alive!"
 
 def run_web():
     app.run(host='0.0.0.0', port=8080)
 
 def keep_alive():
-    t = Thread(target=run_web, daemon=True)
+    t = Thread(target=run_web)
     t.start()
 
 keep_alive()
