@@ -3,11 +3,13 @@ import asyncio
 import aiohttp
 import io
 import random
+import collections
 import discord
 from discord.ext import commands
 from discord.ui import View, Button, Modal, TextInput, UserSelect
 from flask import Flask
 from threading import Thread
+import yt_dlp
 
 # --------------------------------------------------
 # WEB SERVER FOR RENDER 24/7
@@ -69,6 +71,43 @@ MEDIA_ROLE_ID = 1530924449912586351
 temp_voice_channels = {}
 CYBERSHOK_MAPS = ["de_mirage", "de_inferno", "de_dust2", "de_nuke", "de_anubis", "de_ancient", "de_vertigo"]
 
+# --------------------------------------------------
+# MUSIC SYSTEM CONFIGURATION
+# --------------------------------------------------
+music_queues = collections.defaultdict(list)
+
+YTDL_OPTIONS = {
+    'format': 'bestaudio/best',
+    'extractaudio': True,
+    'audioformat': 'mp3',
+    'outtmpl': '%(extractor)s-%(id)s-%(title)s.%(ext)s',
+    'restrictfilenames': True,
+    'noplaylist': True,
+    'nocheckcertificate': True,
+    'ignoreerrors': False,
+    'logtostderr': False,
+    'quiet': True,
+    'no_warnings': True,
+    'default_search': 'auto',
+    'source_address': '0.0.0.0'
+}
+
+FFMPEG_OPTIONS = {
+    'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
+    'options': '-vn'
+}
+
+ytdl = yt_dlp.YoutubeDL(YTDL_OPTIONS)
+
+def play_next(ctx):
+    if len(music_queues[ctx.guild.id]) > 0:
+        url, title = music_queues[ctx.guild.id].pop(0)
+        source = discord.FFmpegPCMAudio(url, **FFMPEG_OPTIONS)
+        ctx.voice_client.play(source, after=lambda e: play_next(ctx))
+        asyncio.run_coroutine_threadsafe(ctx.send(f"🎵 Азыр ойноп жатат: **{title}**"), bot.loop)
+    else:
+        asyncio.run_coroutine_threadsafe(ctx.send("🎶 Ойнотуу тизмеси бүттү."), bot.loop)
+
 
 async def send_custom_log(guild: discord.Guild, channel_id: int, emoji: str, title: str, description_lines: list, color: discord.Color):
     log_channel = guild.get_channel(channel_id)
@@ -125,7 +164,7 @@ class CybershokMapVetoView(View):
     def make_ban_callback(self, map_name: str):
         async def callback(interaction: discord.Interaction):
             if interaction.user.id != self.turn:
-                return await interaction.response.send_message("❌ Қазір бұл капитанның кезегі емес!", ephemeral=True)
+                return await interaction.response.send_message("❌ Не этот капитан должен выбирать!", ephemeral=True)
 
             self.maps.remove(map_name)
             next_turn = self.cap2 if self.turn == self.cap1 else self.cap1
@@ -141,9 +180,9 @@ class CybershokMapVetoView(View):
                         f"🎮 **Карта:** `{final_map}`\n\n"
                         f"🔵 **Команда 1 (Капитан <@{self.cap1}>):**\n{t1_mentions}\n\n"
                         f"🔴 **Команда 2 (Капитан <@{self.cap2}>):**\n{t2_mentions}\n\n"
-                        f"🚀 **Серверге қосылу пәрмені (Connect IP):**\n"
+                        f"🚀 **Команда подключения (Connect IP):**\n"
                         f"```\n{SERVER_CONNECT_IP}\n```\n"
-                        f"Баршаңызға сәттілік!"
+                        f"Удачи в игре!"
                     ),
                     color=discord.Color.green()
                 )
@@ -152,9 +191,9 @@ class CybershokMapVetoView(View):
                 embed = discord.Embed(
                     title=f"🗺️ CYBERSHOK MAP VETO (Матч #{self.lobby_id})",
                     description=(
-                        f"🚫 **<@{interaction.user.id}>** картаны алып тастады (BAN): `{map_name}`\n\n"
-                        f"Кезекті бан жасайтын капитан: <@{next_turn}>\n"
-                        f"Қалған карталар: {', '.join([f'`{m}`' for m in self.maps])}"
+                        f"🚫 **<@{interaction.user.id}>** убрал карту (BAN): `{map_name}`\n\n"
+                        f"Следующий бан делает капитан: <@{next_turn}>\n"
+                        f"Оставшиеся карты: {', '.join([f'`{m}`' for m in self.maps])}"
                     ),
                     color=discord.Color.gold()
                 )
@@ -183,7 +222,7 @@ class CybershokPlayerPickView(View):
     def make_pick_callback(self, picked_uid: int):
         async def callback(interaction: discord.Interaction):
             if interaction.user.id != self.turn:
-                return await interaction.response.send_message("❌ Қазір сіз таңдайтын кезек емес!", ephemeral=True)
+                return await interaction.response.send_message("❌ Не ваша очередь выбирать!", ephemeral=True)
 
             self.available_players.remove(picked_uid)
 
@@ -204,9 +243,9 @@ class CybershokPlayerPickView(View):
                 embed = discord.Embed(
                     title=f"🗺️ CYBERSHOK MAP VETO (Матч #{self.lobby_id})",
                     description=(
-                        f"✅ Ойыншылар таңдалып бітті!\n\n"
-                        f"Бан бастайтын капитан: <@{self.cap1}>\n"
-                        f"Қолжетімді карталар: {', '.join([f'`{m}`' for m in CYBERSHOK_MAPS])}"
+                        f"✅ Игроки выбраны!\n\n"
+                        f"Первый бан делает капитан: <@{self.cap1}>\n"
+                        f"Доступные карты: {', '.join([f'`{m}`' for m in CYBERSHOK_MAPS])}"
                     ),
                     color=discord.Color.gold()
                 )
@@ -222,8 +261,8 @@ class CybershokPlayerPickView(View):
                     description=(
                         f"🔵 **Команда 1 (<@{self.cap1}>):**\n{t1_str}\n\n"
                         f"🔴 **Команда 2 (<@{self.cap2}>):**\n{t2_str}\n\n"
-                        f"📋 **Қалған таңдаусыз ойыншылар:**\n{avail_str}\n\n"
-                        f"Кезекті таңдайтын капитан: <@{next_turn}>"
+                        f"📋 **Оставшиеся игроки:**\n{avail_str}\n\n"
+                        f"Очередь выбора капитана: <@{next_turn}>"
                     ),
                     color=discord.Color.blue()
                 )
@@ -245,14 +284,14 @@ class QueueLobbyView(View):
     async def join_queue(self, interaction: discord.Interaction, button: Button):
         lobby = active_lobbies.get(self.lobby_id)
         if not lobby:
-            return await interaction.response.send_message("❌ Лобби табылмады немесе жойылған.", ephemeral=True)
+            return await interaction.response.send_message("❌ Лобби не найдено или было удалено.", ephemeral=True)
 
         user = interaction.user
         if user.id in lobby["players"]:
-            return await interaction.response.send_message("❌ Сіз бұл лоббиде барсыз!", ephemeral=True)
+            return await interaction.response.send_message("❌ Вы уже зашли в это лобби!", ephemeral=True)
 
         if len(lobby["players"]) >= 10:
-            return await interaction.response.send_message("❌ Лобби толып кетті (10/10)!", ephemeral=True)
+            return await interaction.response.send_message("❌ Лобби заполнено (10/10)!", ephemeral=True)
 
         lobby["players"].append(user.id)
         count = len(lobby["players"])
@@ -272,7 +311,7 @@ class QueueLobbyView(View):
         if msg:
             await msg.edit(embed=embed, view=self)
 
-        await interaction.response.send_message(f"✅ Сіз лоббиге қосылдыңыз! ({count}/10)", ephemeral=True)
+        await interaction.response.send_message(f"✅ Вы присоединились к лобби! ({count}/10)", ephemeral=True)
 
         if count == 10:
             guild = interaction.guild
@@ -301,8 +340,8 @@ class QueueLobbyView(View):
                 description=(
                     f"👑 **Капитан 1:** <@{cap1}>\n"
                     f"👑 **Капитан 2:** <@{cap2}>\n\n"
-                    f"📋 **Таңдау күтіп тұрған ойыншылар:**\n{avail_str}\n\n"
-                    f"**Капитан 1 (<@{cap1}>) бірінші болып ойыншы таңдайды!**"
+                    f"📋 **Ожидают выбора:**\n{avail_str}\n\n"
+                    f"**Капитан 1 (<@{cap1}>) выбирает первым!**"
                 ),
                 color=discord.Color.gold()
             )
@@ -314,7 +353,7 @@ class QueueLobbyView(View):
     async def leave_queue(self, interaction: discord.Interaction, button: Button):
         lobby = active_lobbies.get(self.lobby_id)
         if not lobby or interaction.user.id not in lobby["players"]:
-            return await interaction.response.send_message("❌ Сіз бұл лоббиде жоқсыз.", ephemeral=True)
+            return await interaction.response.send_message("❌ Вас нет в этом лобби.", ephemeral=True)
 
         lobby["players"].remove(interaction.user.id)
         count = len(lobby["players"])
@@ -324,7 +363,7 @@ class QueueLobbyView(View):
             if msg:
                 await msg.delete()
             del active_lobbies[self.lobby_id]
-            return await interaction.response.send_message("🚪 Лоббиде ешкім қалмаған соң жойылды.", ephemeral=True)
+            return await interaction.response.send_message("🚪 Лобби было удалено, так как из него все вышли.", ephemeral=True)
 
         players_list = "\n".join([f"{i+1}. <@{uid}>" for i, uid in enumerate(lobby["players"])])
 
@@ -341,7 +380,7 @@ class QueueLobbyView(View):
         if msg:
             await msg.edit(embed=embed, view=self)
 
-        await interaction.response.send_message("🚪 Сіз лоббиден шықтыңыз.", ephemeral=True)
+        await interaction.response.send_message("🚪 Вы вышли из лобби.", ephemeral=True)
 
 
 class MixLobbyView(View):
@@ -399,14 +438,14 @@ class MixLobbyView(View):
             try:
                 role = await guild.create_role(name="5x5 MIX", color=discord.Color.purple(), reason="Авто-создание роли MIX")
             except Exception as e:
-                return await interaction.response.send_message(f"❌ Рольді құруда қателік: {e}", ephemeral=True)
+                return await interaction.response.send_message(f"❌ Ошибка создания роли: {e}", ephemeral=True)
 
         if role in user.roles:
             await user.remove_roles(role)
-            await interaction.response.send_message("➖ Сізден **5x5 MIX** ролі алынды.", ephemeral=True)
+            await interaction.response.send_message("➖ С вас снята роль **5x5 MIX**.", ephemeral=True)
         else:
             await user.add_roles(role)
-            await interaction.response.send_message("✅ Сізге **5x5 MIX** ролі табысталды!", ephemeral=True)
+            await interaction.response.send_message("✅ Вам выдана роль **5x5 MIX**!", ephemeral=True)
 
 
 # --------------------------------------------------
@@ -704,28 +743,32 @@ class MediaMainView(View):
 
 
 # --------------------------------------------------
-# CLAN SYSTEM (WITH INVITE ACCEPT/DECLINE & LEAVE BUTTON)
+# CLAN SYSTEM (WITH STRICT INVITE ACCEPT/DECLINE & LEAVE BUTTON)
 # --------------------------------------------------
 class ClanInviteAcceptView(View):
     def __init__(self, clan_owner_id: int, target_user_id: int):
-        super().__init__(timeout=120)
+        super().__init__(timeout=120)  # Приглашение действительно 2 минуты
         self.clan_owner_id = clan_owner_id
         self.target_user_id = target_user_id
 
-    @discord.ui.button(label="Қабылдау", style=discord.ButtonStyle.success, emoji="✅")
-    async def accept_invite(self, interaction: discord.Interaction, button: Button):
+    # Проверка: нажимать кнопки может ТОЛЬКО тот, кого пригласили
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id != self.target_user_id:
-            return await interaction.response.send_message("❌ Бұл шақыру сізге арналмаған!", ephemeral=True)
+            await interaction.response.send_message("❌ Это приглашение предназначено не для вас!", ephemeral=True)
+            return False
+        return True
 
+    @discord.ui.button(label="Принять", style=discord.ButtonStyle.success, emoji="✅")
+    async def accept_invite(self, interaction: discord.Interaction, button: Button):
         clan = clans_db.get(self.clan_owner_id)
         if not clan:
-            return await interaction.response.send_message("❌ Клан жойылған немесе табылмады.", ephemeral=True)
+            return await interaction.response.send_message("❌ Клан не найден или был удален.", ephemeral=True)
 
         if len(clan["members"]) >= 10:
-            return await interaction.response.send_message("❌ Клан толып кетті (10/10)!", ephemeral=True)
+            return await interaction.response.send_message("❌ В клане уже максимальное количество участников (10/10)!", ephemeral=True)
 
         if interaction.user.id in user_clan_mapping:
-            return await interaction.response.send_message("❌ Сізде қазірдің өзінде клан бар!", ephemeral=True)
+            return await interaction.response.send_message("❌ Вы уже состоите в клане!", ephemeral=True)
 
         clan["members"].append(interaction.user.id)
         user_clan_mapping[interaction.user.id] = self.clan_owner_id
@@ -753,7 +796,7 @@ class ClanInviteAcceptView(View):
             guild=guild,
             channel_id=CLAN_LOG_CHANNEL_ID,
             emoji="👥",
-            title="Ойыншы кланға қосылды",
+            title="Игрок вступил в клан",
             description_lines=[
                 f"**Участник:** {interaction.user.name} ({interaction.user.mention})",
                 f"**Клан:** {clan['name']} (`[{clan['tag']}]`)"
@@ -761,14 +804,11 @@ class ClanInviteAcceptView(View):
             color=discord.Color.green()
         )
 
-        await interaction.response.edit_message(content=f"🎉 **{interaction.user.mention}**, сіз **{clan['name']}** кланына сәтті қосылдыңыз!", view=None)
+        await interaction.response.edit_message(content=f"🎉 **{interaction.user.mention}**, вы успешно вступили в клан **{clan['name']}**!", view=None)
 
-    @discord.ui.button(label="Бас тарту", style=discord.ButtonStyle.danger, emoji="✖️")
+    @discord.ui.button(label="Отклонить", style=discord.ButtonStyle.danger, emoji="✖️")
     async def decline_invite(self, interaction: discord.Interaction, button: Button):
-        if interaction.user.id != self.target_user_id:
-            return await interaction.response.send_message("❌ Бұл шақыру сізге арналмаған!", ephemeral=True)
-
-        await interaction.response.edit_message(content=f"❌ **{interaction.user.mention}** шақырудан бас тартты.", view=None)
+        await interaction.response.edit_message(content=f"❌ **{interaction.user.mention}** отклонил(а) приглашение в клан.", view=None)
 
 
 class InviteUserSelect(View):
@@ -776,29 +816,29 @@ class InviteUserSelect(View):
         super().__init__(timeout=60)
         self.clan_owner_id = clan_owner_id
 
-    @discord.ui.select(cls=UserSelect, placeholder="Шақыратын ойыншыны таңдаңыз...")
+    @discord.ui.select(cls=UserSelect, placeholder="Выберите игрока для приглашения...")
     async def select_user(self, interaction: discord.Interaction, select: UserSelect):
         target_member = select.values[0]
         clan = clans_db.get(self.clan_owner_id)
 
         if not clan:
-            return await interaction.response.send_message("❌ Кланыңыз табылмады.", ephemeral=True)
+            return await interaction.response.send_message("❌ Ваш клан не найден.", ephemeral=True)
 
         if len(clan["members"]) >= 10:
-            return await interaction.response.send_message("❌ Кланда максималды ойыншы саны толған (10/10).", ephemeral=True)
+            return await interaction.response.send_message("❌ В клане максимальное количество участников (10/10).", ephemeral=True)
 
         if target_member.id in clan["members"]:
-            return await interaction.response.send_message("❌ Бұл ойыншы кланыңызда бар!", ephemeral=True)
+            return await interaction.response.send_message("❌ Этот игрок уже состоит в вашем клане!", ephemeral=True)
 
         if target_member.id in user_clan_mapping:
-            return await interaction.response.send_message("❌ Бұл ойыншы басқа кланда бар!", ephemeral=True)
+            return await interaction.response.send_message("❌ Этот игрок уже состоит в другом клане!", ephemeral=True)
 
         invite_view = ClanInviteAcceptView(self.clan_owner_id, target_member.id)
         await interaction.channel.send(
-            content=f"✉️ {target_member.mention}, сізді **{clan['name']}** (`[{clan['tag']}]`) кланына шақырады! Қосылу үшін батырманы басыңыз:",
+            content=f"✉️ {target_member.mention}, вас приглашают в клан **{clan['name']}** (`[{clan['tag']}]`)! Нажмите кнопку ниже, чтобы принять решение:",
             view=invite_view
         )
-        await interaction.response.send_message(f"✅ {target_member.mention} пайдаланушысына шақыру жіберілді!", ephemeral=True)
+        await interaction.response.send_message(f"✅ Приглашение отправлено пользователю {target_member.mention}!", ephemeral=True)
 
 
 class KickUserSelect(View):
@@ -941,11 +981,11 @@ class ClanMemberView(View):
     async def leave_clan_btn(self, interaction: discord.Interaction, button: Button):
         user_id = interaction.user.id
         if user_id == self.clan_owner_id:
-            return await interaction.response.send_message("❌ Клан лидері кланнан шыға алмайды!", ephemeral=True)
+            return await interaction.response.send_message("❌ Лидер клана не может покинуть клан! Чтобы распустить его, нажмите 'Распустить клан'.", ephemeral=True)
 
         clan = clans_db.get(self.clan_owner_id)
         if not clan or user_id not in clan["members"]:
-            return await interaction.response.send_message("❌ Сіз бұл кланда жоқсыз.", ephemeral=True)
+            return await interaction.response.send_message("❌ Вы не состоите в этом клане.", ephemeral=True)
 
         clan["members"].remove(user_id)
         user_clan_mapping.pop(user_id, None)
@@ -976,15 +1016,15 @@ class ClanMemberView(View):
             guild=guild,
             channel_id=CLAN_LOG_CHANNEL_ID,
             emoji="🚪",
-            title="Ойыншы кланнан шықты",
+            title="Игрок покинул клан",
             description_lines=[
-                f"**Ойыншы:** {interaction.user.name} ({interaction.user.mention})",
+                f"**Участник:** {interaction.user.name} ({interaction.user.mention})",
                 f"**Клан:** {clan['name']} (`[{tag}]`)"
             ],
             color=discord.Color.orange()
         )
 
-        await interaction.response.send_message(f"🚪 Сіз **{clan['name']}** кланынан сәтті шықтыңыз.", ephemeral=True)
+        await interaction.response.send_message(f"🚪 Вы успешно покинули клан **{clan['name']}**.", ephemeral=True)
 
 
 class CreateClanModal(Modal, title="Создание клана"):
@@ -1144,7 +1184,7 @@ class MyBot(commands.Bot):
         )
         await self.change_presence(activity=activity)
         print("==========================================")
-        print(f" БОТ СӘТТІ КӨШІРІЛДІ ЖӘНЕ ОНЛАЙН: {self.user} ")
+        print(f" БОТ УСПЕШНО ЗАПУЩЕН И ОНЛАЙН: {self.user} ")
         print("==========================================")
 
 bot = MyBot()
@@ -1294,7 +1334,69 @@ async def on_voice_state_update(member, before, after):
 
 
 # --------------------------------------------------
-# BOT COMMANDS (!clear & PANEL SETUP)
+# MUSIC COMMANDS (!play, !skip, !stop, !leave)
+# --------------------------------------------------
+@bot.command(name="play", aliases=["p"])
+async def play(ctx, *, search: str):
+    """Музыка кошуу (мисалы: !play Alan Walker Faded же музыканын ссылкасы)"""
+    if not ctx.author.voice:
+        return await ctx.send("❌ Музыка угуу үчүн алгач үн каналына кириңиз!")
+
+    voice_channel = ctx.author.voice.channel
+    if not ctx.voice_client:
+        await voice_channel.connect()
+
+    async with ctx.typing():
+        loop = asyncio.get_event_loop()
+        data = await loop.run_in_executor(None, lambda: ytdl.extract_info(search, download=False))
+
+        if 'entries' in data:
+            data = data['entries'][0]
+
+        song_url = data['url']
+        song_title = data['title']
+
+        if ctx.voice_client.is_playing() or ctx.voice_client.is_paused():
+            music_queues[ctx.guild.id].append((song_url, song_title))
+            await ctx.send(f"➕ Кезекке кошулду: **{song_title}**")
+        else:
+            source = discord.FFmpegPCMAudio(song_url, **FFMPEG_OPTIONS)
+            ctx.voice_client.play(source, after=lambda e: play_next(ctx))
+            await ctx.send(f"🎵 Азыр ойноп жатат: **{song_title}**")
+
+
+@bot.command(name="skip", aliases=["s"])
+async def skip(ctx):
+    """Учурдагы ырды өткөрүп жиберүү"""
+    if ctx.voice_client and ctx.voice_client.is_playing():
+        ctx.voice_client.stop()
+        await ctx.send("⏭️ Ыр өткөрүлдү!")
+    else:
+        await ctx.send("❌ Азыр эч кандай ыр ойнобой жатат.")
+
+
+@bot.command(name="stop")
+async def stop(ctx):
+    """Ойнотууну токтотуу жана кезекти тазалоо"""
+    if ctx.voice_client:
+        music_queues[ctx.guild.id].clear()
+        ctx.voice_client.stop()
+        await ctx.send("⏹️ Ойнотуу токтотулду, кезек тазаланды.")
+
+
+@bot.command(name="leave")
+async def leave(ctx):
+    """Ботту үн каналынан чыгаруу"""
+    if ctx.voice_client:
+        music_queues[ctx.guild.id].clear()
+        await ctx.voice_client.disconnect()
+        await ctx.send("👋 Бот үн каналынан чыкты.")
+    else:
+        await ctx.send("❌ Бот үн каналында эмес.")
+
+
+# --------------------------------------------------
+# OTHER BOT COMMANDS (!clear & PANEL SETUP)
 # --------------------------------------------------
 @bot.command(name="clear", aliases=["purge", "clean"])
 @commands.has_permissions(manage_messages=True)
