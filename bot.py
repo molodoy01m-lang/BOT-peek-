@@ -9,22 +9,25 @@ from discord.ui import View, Button, Modal, TextInput, UserSelect
 from flask import Flask
 from threading import Thread
 
-# Web-server (чтобы бот работал 24/7 на Render)
+# --------------------------------------------------
+# WEB SERVER FOR RENDER (Правильный асинхронный запуск)
+# --------------------------------------------------
 app = Flask('')
 
 @app.route('/')
 def home():
-    return "Bot is alive!"
+    return "ALASH PROJECT BOT is Alive!"
 
 def run_web():
-    app.run(host='0.0.0.0', port=8080)
+    port = int(os.environ.get('PORT', 8080))
+    app.run(host='0.0.0.0', port=port)
 
 def keep_alive():
-    t = Thread(target=run_web)
+    # daemon=True не дает Flask заблокировать работу Discord бота
+    t = Thread(target=run_web, daemon=True)
     t.start()
 
 keep_alive()
-
 # --------------------------------------------------
 # DISCORD BOT SETUP & INTENTS
 # --------------------------------------------------
@@ -1355,12 +1358,14 @@ async def send_clan(ctx):
 raw_token = os.getenv("DISCORD_TOKEN")
 
 if not raw_token:
-    print("❌ КРИТИЧЕСКАЯ ОШИБКА: Переменная DISCORD_TOKEN не найдена в Environment на Render!")
+    print("❌ ОШИБКА: Переменная DISCORD_TOKEN не найдена в Environment на Render!")
 else:
+    # Очищаем токен от случайных кавычек и пробелов
     token = raw_token.strip().strip('"').strip("'")
     try:
+        print("🚀 Попытка подключения к Discord...")
         bot.run(token)
     except discord.errors.LoginFailure:
-        print("❌ ОШИБКА АВТОРИЗАЦИИ: Неверный DISCORD_TOKEN! Пересоздайте токен в Discord Developer Portal.")
+        print("❌ ОШИБКА АВТОРИЗАЦИИ: Неверный DISCORD_TOKEN! Сбросьте токен в Discord Portal.")
     except Exception as e:
-        print(f"❌ НЕИЗВЕСТНАЯ ОШИБКА ПРИ ЗАПУСКЕ: {e}")
+        print(f"❌ ОШИБКА ЗАПУСКА: {e}")
