@@ -1279,5 +1279,4 @@ async def send_clan(ctx):
     embed.set_footer(text="alashproject.kz")
     await ctx.send(embed=embed, view=ClanPanelView())
 
-
 bot.run(os.getenv("DISCORD_TOKEN"))
