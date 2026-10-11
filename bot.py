@@ -72,7 +72,7 @@ temp_voice_channels = {}
 CYBERSHOK_MAPS = ["de_mirage", "de_inferno", "de_dust2", "de_nuke", "de_anubis", "de_ancient", "de_vertigo"]
 
 # --------------------------------------------------
-# MUSIC SYSTEM CONFIGURATION
+# MUSIC SYSTEM CONFIGURATION (SOUNDCLOUD ENGINE)
 # --------------------------------------------------
 music_queues = collections.defaultdict(list)
 
@@ -88,7 +88,7 @@ YTDL_OPTIONS = {
     'logtostderr': False,
     'quiet': True,
     'no_warnings': True,
-    'default_search': 'auto',
+    'default_search': 'scsearch',
     'source_address': '0.0.0.0'
 }
 
@@ -102,11 +102,15 @@ ytdl = yt_dlp.YoutubeDL(YTDL_OPTIONS)
 def play_next(ctx):
     if len(music_queues[ctx.guild.id]) > 0:
         url, title = music_queues[ctx.guild.id].pop(0)
-        source = discord.FFmpegPCMAudio(url, **FFMPEG_OPTIONS)
-        ctx.voice_client.play(source, after=lambda e: play_next(ctx))
-        asyncio.run_coroutine_threadsafe(ctx.send(f"🎵 Азыр ойноп жатат: **{title}**"), bot.loop)
+        try:
+            source = discord.FFmpegPCMAudio(url, **FFMPEG_OPTIONS)
+            ctx.voice_client.play(source, after=lambda e: play_next(ctx))
+            asyncio.run_coroutine_threadsafe(ctx.send(f"🎵 Сейчас играет: **{title}**"), bot.loop)
+        except Exception as e:
+            asyncio.run_coroutine_threadsafe(ctx.send(f"❌ Ошибка воспроизведения следующего трека: `{e}`"), bot.loop)
+            play_next(ctx)
     else:
-        asyncio.run_coroutine_threadsafe(ctx.send("🎶 Ойнотуу тизмеси бүттү."), bot.loop)
+        asyncio.run_coroutine_threadsafe(ctx.send("🎶 Очередь воспроизведения пуста."), bot.loop)
 
 
 async def send_custom_log(guild: discord.Guild, channel_id: int, emoji: str, title: str, description_lines: list, color: discord.Color):
@@ -751,7 +755,6 @@ class ClanInviteAcceptView(View):
         self.clan_owner_id = clan_owner_id
         self.target_user_id = target_user_id
 
-    # Проверка: нажимать кнопки может ТОЛЬКО тот, кого пригласили
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id != self.target_user_id:
             await interaction.response.send_message("❌ Это приглашение предназначено не для вас!", ephemeral=True)
@@ -1338,61 +1341,81 @@ async def on_voice_state_update(member, before, after):
 # --------------------------------------------------
 @bot.command(name="play", aliases=["p"])
 async def play(ctx, *, search: str):
-    """Музыка кошуу (мисалы: !play Alan Walker Faded же музыканын ссылкасы)"""
+    """Воспроизведение музыки через SoundCloud"""
     if not ctx.author.voice:
-        return await ctx.send("❌ Музыка угуу үчүн алгач үн каналына кириңиз!")
+        return await ctx.send("❌ Сначала зайдите в голосовой канал!")
 
     voice_channel = ctx.author.voice.channel
+
     if not ctx.voice_client:
-        await voice_channel.connect()
+        try:
+            await voice_channel.connect()
+        except Exception as e:
+            return await ctx.send(f"❌ Ошибка подключения к голосовому каналу: `{e}`")
 
-    async with ctx.typing():
+    msg = await ctx.send("🔍 Поиск трека...")
+
+    query = search if search.startswith("http://") or search.startswith("https://") else f"scsearch:{search}"
+
+    try:
         loop = asyncio.get_event_loop()
-        data = await loop.run_in_executor(None, lambda: ytdl.extract_info(search, download=False))
+        data = await loop.run_in_executor(None, lambda: ytdl.extract_info(query, download=False))
 
-        if 'entries' in data:
+        if not data:
+            return await msg.edit(content="❌ Не удалось найти этот трек.")
+
+        if 'entries' in data and len(data['entries']) > 0:
             data = data['entries'][0]
 
-        song_url = data['url']
-        song_title = data['title']
+        song_url = data.get('url')
+        song_title = data.get('title', 'Трек')
+
+        if not song_url:
+            return await msg.edit(content="❌ Не удалось получить ссылку на аудипоток.")
 
         if ctx.voice_client.is_playing() or ctx.voice_client.is_paused():
             music_queues[ctx.guild.id].append((song_url, song_title))
-            await ctx.send(f"➕ Кезекке кошулду: **{song_title}**")
+            await msg.edit(content=f"➕ Добавлено в очередь: **{song_title}**")
         else:
-            source = discord.FFmpegPCMAudio(song_url, **FFMPEG_OPTIONS)
-            ctx.voice_client.play(source, after=lambda e: play_next(ctx))
-            await ctx.send(f"🎵 Азыр ойноп жатат: **{song_title}**")
+            try:
+                source = discord.FFmpegPCMAudio(song_url, **FFMPEG_OPTIONS)
+                ctx.voice_client.play(source, after=lambda e: play_next(ctx))
+                await msg.edit(content=f"🎵 Сейчас играет: **{song_title}**")
+            except Exception as e:
+                await msg.edit(content=f"❌ Ошибка воспроизведения FFmpeg: `{e}`")
+
+    except Exception as e:
+        await msg.edit(content=f"❌ Ошибка поиска трека: `{e}`")
 
 
 @bot.command(name="skip", aliases=["s"])
 async def skip(ctx):
-    """Учурдагы ырды өткөрүп жиберүү"""
+    """Пропустить текущий трек"""
     if ctx.voice_client and ctx.voice_client.is_playing():
         ctx.voice_client.stop()
-        await ctx.send("⏭️ Ыр өткөрүлдү!")
+        await ctx.send("⏭️ Трек пропущен!")
     else:
-        await ctx.send("❌ Азыр эч кандай ыр ойнобой жатат.")
+        await ctx.send("❌ Сейчас ничего не играет.")
 
 
 @bot.command(name="stop")
 async def stop(ctx):
-    """Ойнотууну токтотуу жана кезекти тазалоо"""
+    """Остановить воспроизведение и очистить очередь"""
     if ctx.voice_client:
         music_queues[ctx.guild.id].clear()
         ctx.voice_client.stop()
-        await ctx.send("⏹️ Ойнотуу токтотулду, кезек тазаланды.")
+        await ctx.send("⏹️ Воспроизведение остановлено, очередь очищена.")
 
 
 @bot.command(name="leave")
 async def leave(ctx):
-    """Ботту үн каналынан чыгаруу"""
+    """Отключить бота от голосового канала"""
     if ctx.voice_client:
         music_queues[ctx.guild.id].clear()
         await ctx.voice_client.disconnect()
-        await ctx.send("👋 Бот үн каналынан чыкты.")
+        await ctx.send("👋 Бот отключился от голосового канала.")
     else:
-        await ctx.send("❌ Бот үн каналында эмес.")
+        await ctx.send("❌ Бот не находится в голосовом канале.")
 
 
 # --------------------------------------------------
