@@ -9,7 +9,7 @@ from discord.ui import View, Button, Modal, TextInput, UserSelect
 from flask import Flask
 from threading import Thread
 
-# Web-server (чтобы бот работал 24/7 на Render)
+# Web-сервер для працы 24/7 на Render
 app = Flask('')
 
 @app.route('/')
@@ -33,7 +33,7 @@ intents.moderation = True
 intents.guilds = True
 
 # --------------------------------------------------
-# НАСТРОЙКИ И ID КАНАЛОВ
+# НАЛАДКІ І ID КАНАЛАЎ
 # --------------------------------------------------
 AUTO_ROLE_ID = 1555292717830119514
 WELCOME_CHANNEL_ID = 1497873420216439016
@@ -49,11 +49,11 @@ SERVER_CONNECT_IP = "connect connect.alashproject.kz"
 user_levels = {}
 verified_users = {}
 
-# База кланов
+# База кланаў
 clans_db = {}
 user_clan_mapping = {}
 
-# База 5x5 MIX Лобби
+# База 5x5 MIX Лобі
 active_lobbies = {}
 
 GIRL_BANNER_URL = "https://media.discordapp.net/attachments/1544309714962227230/1557815971660435456/banner_girl.png?ex=6ac92cae&is=6ac7db2e&hm=250e0baedfe61fc5baff21e59e0e6bd61f5e494d88ade315be12b6e3c199c916&=&format=webp&quality=lossless&width=2048&height=729"
@@ -419,7 +419,7 @@ class MixLobbyView(View):
 
 
 # --------------------------------------------------
-# ГОЛОСОВЫЕ И МОДАЛЫ (VOICE & TICKET & CLAN)
+# ГАЛАСАВЫЯ І МАДАЛЫ (VOICE & TICKET & CLAN)
 # --------------------------------------------------
 class RenameVoiceModal(Modal, title="Переименовать канал"):
     new_name = TextInput(label="Новое название канала", placeholder="Введите новое название...", required=True, max_length=100)
@@ -694,7 +694,7 @@ class MediaMainView(View):
         await interaction.response.send_modal(MediaApplicationModal())
 
 
-# --- СИСТЕМА КЛАНОВ ---
+# --- СІСТЭМА КЛАНАЎ ---
 class InviteUserSelect(View):
     def __init__(self, clan_owner_id):
         super().__init__(timeout=60)
@@ -1032,7 +1032,7 @@ bot = MyBot()
 
 
 # --------------------------------------------------
-# ЛОГИ И СОБЫТИЯ СЕРВЕРА
+# ЛОГІ І ПАДЗЕІ СЕРВЕРА
 # --------------------------------------------------
 @bot.event
 async def on_member_join(member):
@@ -1062,7 +1062,7 @@ async def on_message(message):
     await bot.process_commands(message)
 
 
-# Удаление сообщений
+# Выдаленне паведамленняў
 @bot.event
 async def on_message_delete(message):
     if message.author.bot: return
@@ -1080,7 +1080,7 @@ async def on_message_delete(message):
     )
 
 
-# Бан и разбан
+# Бан і разбан
 @bot.event
 async def on_member_ban(guild, user):
     async for entry in guild.audit_logs(limit=1, action=discord.AuditLogAction.ban):
@@ -1126,7 +1126,7 @@ async def on_member_unban(guild, user):
     )
 
 
-# Мут (Таймаут)
+# Мут (Таймаўт)
 @bot.event
 async def on_member_update(before, after):
     if before.timed_out_until != after.timed_out_until:
@@ -1166,7 +1166,7 @@ async def on_member_update(before, after):
 
 @bot.event
 async def on_voice_state_update(member, before, after):
-    # Автоматты түрде уақытша войс бөлме ашу (Арна атында 'создать войс' сөзі болса)
+    # Аўтаматычнае стварэнне прыватнага галасавога пакоя (калі ў назве канала ёсць 'создать войс')
     if after.channel and "создать войс" in after.channel.name.lower():
         v_ch = await member.guild.create_voice_channel(name=f"Комната {member.name}", category=after.channel.category)
         await v_ch.set_permissions(member, connect=True, speak=True, manage_channels=True)
@@ -1179,11 +1179,11 @@ async def on_voice_state_update(member, before, after):
 
 
 # --------------------------------------------------
-# КОМАНДЫ
+# КАМАНДЫ
 # --------------------------------------------------
 @bot.command()
 async def send_mix(ctx):
-    """Вызов меню 5x5 MIX Лобби"""
+    """Выклік меню 5x5 MIX Лобі"""
     embed = discord.Embed(
         title="<a:15770animatedarrowyellow:1503049767016595586> Создание лобби",
         description=(
