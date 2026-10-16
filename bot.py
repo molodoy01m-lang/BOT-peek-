@@ -497,39 +497,69 @@ class VoiceControlPanel(View):
             return False, "❌ Вы не являетесь владельцем этого приватного канала!"
         return True, voice_channel
 
-    @discord.ui.button(emoji=discord.PartialEmoji.from_str("<:83570screensharevolumemax:1503049767016595586>"), style=discord.ButtonStyle.secondary, custom_id="vc_open", row=0)
+    @discord.ui.button(
+        emoji=discord.PartialEmoji.from_str("<:83570screensharevolumemax:1503049767016595586>"), 
+        style=discord.ButtonStyle.secondary, 
+        custom_id="vc_open", 
+        row=0
+    )
     async def open_channel(self, interaction: discord.Interaction, button: Button):
         is_ok, result = self.check_owner(interaction)
         if not is_ok: return await interaction.response.send_message(result, ephemeral=True)
         await result.set_permissions(interaction.guild.default_role, connect=True)
         await interaction.response.send_message("🔓 Канал открыт для всех.", ephemeral=True)
 
-    @discord.ui.button(emoji=discord.PartialEmoji.from_str("<:53540voiceinvite:1503049767016595586>"), style=discord.ButtonStyle.secondary, custom_id="vc_add_user", row=0)
+    @discord.ui.button(
+        emoji=discord.PartialEmoji.from_str("<:53540voiceinvite:1503049767016595586>"), 
+        style=discord.ButtonStyle.secondary, 
+        custom_id="vc_add_user", 
+        row=0
+    )
     async def add_user(self, interaction: discord.Interaction, button: Button):
         is_ok, _ = self.check_owner(interaction)
         if not is_ok: return await interaction.response.send_message(_, ephemeral=True)
         await interaction.response.send_message("Выберите пользователя:", view=UserActionView("add"), ephemeral=True)
 
-    @discord.ui.button(emoji="✏️", style=discord.ButtonStyle.secondary, custom_id="vc_rename", row=0)
+    @discord.ui.button(
+        emoji="✏️", 
+        style=discord.ButtonStyle.secondary, 
+        custom_id="vc_rename", 
+        row=0
+    )
     async def rename_channel(self, interaction: discord.Interaction, button: Button):
         is_ok, _ = self.check_owner(interaction)
         if not is_ok: return await interaction.response.send_message(_, ephemeral=True)
         await interaction.response.send_modal(RenameVoiceModal())
 
-    @discord.ui.button(emoji=discord.PartialEmoji.from_str("<:807617yellowcrown:1503049767016595586>"), style=discord.ButtonStyle.secondary, custom_id="vc_transfer", row=1)
+    @discord.ui.button(
+        emoji=discord.PartialEmoji.from_str("<:807617yellowcrown:1503049767016595586>"), 
+        style=discord.ButtonStyle.secondary, 
+        custom_id="vc_transfer", 
+        row=1
+    )
     async def transfer_owner(self, interaction: discord.Interaction, button: Button):
         is_ok, _ = self.check_owner(interaction)
         if not is_ok: return await interaction.response.send_message(_, ephemeral=True)
         await interaction.response.send_message("Выберите нового владельца:", view=UserActionView("transfer"), ephemeral=True)
 
-    @discord.ui.button(emoji=discord.PartialEmoji.from_str("<:35297voicelocked:1503049767016595586>"), style=discord.ButtonStyle.secondary, custom_id="vc_close", row=1)
+    @discord.ui.button(
+        emoji=discord.PartialEmoji.from_str("<:35297voicelocked:1503049767016595586>"), 
+        style=discord.ButtonStyle.secondary, 
+        custom_id="vc_close", 
+        row=1
+    )
     async def close_channel(self, interaction: discord.Interaction, button: Button):
         is_ok, result = self.check_owner(interaction)
         if not is_ok: return await interaction.response.send_message(result, ephemeral=True)
         await result.set_permissions(interaction.guild.default_role, connect=False)
         await interaction.response.send_message("🔒 Канал закрыт от посторонних.", ephemeral=True)
 
-    @discord.ui.button(emoji=discord.PartialEmoji.from_str("<:nosoundpls:1503049767016595586>"), style=discord.ButtonStyle.secondary, custom_id="vc_kick_user", row=1)
+    @discord.ui.button(
+        emoji=discord.PartialEmoji.from_str("<:nosoundpls:1503049767016595586>"), 
+        style=discord.ButtonStyle.secondary, 
+        custom_id="vc_kick_user", 
+        row=1
+    )
     async def kick_user_btn(self, interaction: discord.Interaction, button: Button):
         is_ok, _ = self.check_owner(interaction)
         if not is_ok: return await interaction.response.send_message(_, ephemeral=True)
