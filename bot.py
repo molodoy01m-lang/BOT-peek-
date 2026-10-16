@@ -747,7 +747,7 @@ class MediaMainView(View):
 
 
 # --------------------------------------------------
-# CLAN SYSTEM (FIXED DM ROLES & TAGS)
+# CLAN SYSTEM (PRIVATE DM INVITES WITH GUILD_ID FIXED)
 # --------------------------------------------------
 class ClanInviteAcceptView(View):
     def __init__(self, clan_owner_id: int, target_user_id: int, guild_id: int):
@@ -758,7 +758,7 @@ class ClanInviteAcceptView(View):
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id != self.target_user_id:
-            await interaction.response.send_message("❌ Бұл шақыру сізге арналмаған!", ephemeral=True)
+            await interaction.response.send_message("❌ Это приглашение предназначено не для вас!", ephemeral=True)
             return False
         return True
 
@@ -766,23 +766,21 @@ class ClanInviteAcceptView(View):
     async def accept_invite(self, interaction: discord.Interaction, button: Button):
         clan = clans_db.get(self.clan_owner_id)
         if not clan:
-            return await interaction.response.send_message("❌ Клан табылмады или өшірілген.", ephemeral=True)
+            return await interaction.response.send_message("❌ Клан не найден или был удален.", ephemeral=True)
 
         if len(clan["members"]) >= 10:
-            return await interaction.response.send_message("❌ Клан ішінде максималды қатысушы саны толды (10/10)!", ephemeral=True)
+            return await interaction.response.send_message("❌ В клане уже максимальное количество участников (10/10)!", ephemeral=True)
 
         if interaction.user.id in user_clan_mapping:
-            return await interaction.response.send_message("❌ Сіз қазірдің өзінде кландасыз!", ephemeral=True)
+            return await interaction.response.send_message("❌ Вы уже состоите в клане!", ephemeral=True)
 
         clan["members"].append(interaction.user.id)
         user_clan_mapping[interaction.user.id] = self.clan_owner_id
 
-        # Серверді ID арқылы іздеп табу (ЛС-те болса да жұмыс істейді)
         guild = interaction.client.get_guild(self.guild_id)
         member = guild.get_member(interaction.user.id) if guild else None
 
         if guild and member:
-            # 1. Роль беру
             clan_role = guild.get_role(clan["role_id"])
             if clan_role:
                 try: 
@@ -790,7 +788,6 @@ class ClanInviteAcceptView(View):
                 except Exception as e:
                     print(f"Ошибка выдачи роли: {e}")
 
-            # 2. Чат және Войс каналдарға рұқсат беру
             category = guild.get_channel(clan["category"])
             text_ch = guild.get_channel(clan["text_ch"])
             voice_ch = guild.get_channel(clan["voice_ch"])
@@ -799,7 +796,6 @@ class ClanInviteAcceptView(View):
             if text_ch: await text_ch.set_permissions(member, read_messages=True, send_messages=True)
             if voice_ch: await voice_ch.set_permissions(member, connect=True, speak=True)
 
-            # 3. Никнеймге тег қосу [TAG] Name
             try:
                 new_nick = f"[{clan['tag']}] {member.display_name}"
                 if len(new_nick) <= 32:
@@ -807,7 +803,6 @@ class ClanInviteAcceptView(View):
             except Exception as e:
                 print(f"Ошибка изменения ника: {e}")
 
-            # 4. Лог жіберу
             await send_custom_log(
                 guild=guild,
                 channel_id=CLAN_LOG_CHANNEL_ID,
@@ -849,7 +844,6 @@ class InviteUserSelect(View):
         if target_member.id in user_clan_mapping:
             return await interaction.response.send_message("❌ Этот игрок уже состоит в другом клане!", ephemeral=True)
 
-        # guild_id параметрін ClanInviteAcceptView-ке жібереміз
         invite_view = ClanInviteAcceptView(self.clan_owner_id, target_member.id, interaction.guild.id)
         try:
             await target_member.send(
@@ -1349,15 +1343,133 @@ async def on_member_update(before, after):
 
 @bot.event
 async def on_voice_state_update(member, before, after):
+    # 1. Авто-создание приватных комнат (динамический войс)
     if after.channel and "создать войс" in after.channel.name.lower():
         v_ch = await member.guild.create_voice_channel(name=f"Комната {member.name}", category=after.channel.category)
         await v_ch.set_permissions(member, connect=True, speak=True, manage_channels=True)
         temp_voice_channels[v_ch.id] = member.id
         await member.move_to(v_ch)
+
+    # 2. Авто-удаление пустых приватных комнат
     if before.channel and before.channel.id in temp_voice_channels:
         if len(before.channel.members) == 0:
             del temp_voice_channels[before.channel.id]
             await before.channel.delete()
+
+    # --------------------------------------------------
+    # ГОЛОСОВОЙ КАНАЛ АУДИТ ЛОГИ (ПОДРОБНЫЙ МОНИТОРИНГ)
+    # --------------------------------------------------
+    guild = member.guild
+
+    # Подключение к голосовому каналу (Connect)
+    if before.channel is None and after.channel is not None:
+        await send_custom_log(
+            guild=guild,
+            channel_id=SERVER_LOG_CHANNEL_ID,
+            emoji="🎙️",
+            title="Подключение к голосовому каналу",
+            description_lines=[
+                f"**Участник:** {member.name} ({member.mention})",
+                f"**Канал:** {after.channel.mention}"
+            ],
+            color=discord.Color.green()
+        )
+
+    # Отключение от голосового канала (Disconnect)
+    elif before.channel is not None and after.channel is None:
+        await send_custom_log(
+            guild=guild,
+            channel_id=SERVER_LOG_CHANNEL_ID,
+            emoji="🚪",
+            title="Отключение от голосового канала",
+            description_lines=[
+                f"**Участник:** {member.name} ({member.mention})",
+                f"**Канал:** {before.channel.mention}"
+            ],
+            color=discord.Color.red()
+        )
+
+    # Перемещение между каналами (Move)
+    elif before.channel != after.channel and before.channel is not None and after.channel is not None:
+        moderator = None
+        try:
+            async for entry in guild.audit_logs(limit=1, action=discord.AuditLogAction.member_move):
+                if entry.target.id == member.id:
+                    moderator = entry.user
+                    break
+        except Exception:
+            pass
+
+        mod_info = f"\n**Переместил модератор:** {moderator.mention}" if moderator else ""
+
+        await send_custom_log(
+            guild=guild,
+            channel_id=SERVER_LOG_CHANNEL_ID,
+            emoji="↔️",
+            title="Перемещение в голосовом канале",
+            description_lines=[
+                f"**Участник:** {member.name} ({member.mention})",
+                f"**Из канала:** {before.channel.mention}",
+                f"**В канал:** {after.channel.mention}" + mod_info
+            ],
+            color=discord.Color.blue()
+        )
+
+    # Заглушение микрофона сервера (Server Mute / Unmute)
+    if before.mute != after.mute:
+        action = "Заглушен микрофон (Server Mute)" if after.mute else "Снята заглушка (Server Unmute)"
+        emoji = "🔇" if after.mute else "🔊"
+        
+        moderator = None
+        try:
+            async for entry in guild.audit_logs(limit=1, action=discord.AuditLogAction.member_update):
+                if entry.target.id == member.id:
+                    moderator = entry.user
+                    break
+        except Exception:
+            pass
+
+        mod_info = f"\n**Модератор:** {moderator.mention}" if moderator else ""
+
+        await send_custom_log(
+            guild=guild,
+            channel_id=SERVER_LOG_CHANNEL_ID,
+            emoji=emoji,
+            title=f"Голосовой чат: {action}",
+            description_lines=[
+                f"**Участник:** {member.name} ({member.mention})",
+                f"**Канал:** {after.channel.mention if after.channel else 'Вне канала'}" + mod_info
+            ],
+            color=discord.Color.orange() if after.mute else discord.Color.green()
+        )
+
+    # Отключение звука сервера (Server Deafen / Undeafen)
+    if before.deaf != after.deaf:
+        action = "Отключен звук (Server Deafen)" if after.deaf else "Включен звук (Server Undeafen)"
+        emoji = "🎧" if after.deaf else "🔊"
+
+        moderator = None
+        try:
+            async for entry in guild.audit_logs(limit=1, action=discord.AuditLogAction.member_update):
+                if entry.target.id == member.id:
+                    moderator = entry.user
+                    break
+        except Exception:
+            pass
+
+        mod_info = f"\n**Модератор:** {moderator.mention}" if moderator else ""
+
+        await send_custom_log(
+            guild=guild,
+            channel_id=SERVER_LOG_CHANNEL_ID,
+            emoji=emoji,
+            title=f"Голосовой чат: {action}",
+            description_lines=[
+                f"**Участник:** {member.name} ({member.mention})",
+                f"**Канал:** {after.channel.mention if after.channel else 'Вне канала'}" + mod_info
+            ],
+            color=discord.Color.dark_orange() if after.deaf else discord.Color.green()
+        )
 
 
 # --------------------------------------------------
