@@ -747,11 +747,11 @@ class MediaMainView(View):
 
 
 # --------------------------------------------------
-# CLAN SYSTEM (WITH STRICT INVITE ACCEPT/DECLINE & LEAVE BUTTON)
+# CLAN SYSTEM (PRIVATE DM INVITES & LEAVE BUTTON)
 # --------------------------------------------------
 class ClanInviteAcceptView(View):
     def __init__(self, clan_owner_id: int, target_user_id: int):
-        super().__init__(timeout=120)  # Приглашение действительно 2 минуты
+        super().__init__(timeout=120)
         self.clan_owner_id = clan_owner_id
         self.target_user_id = target_user_id
 
@@ -777,14 +777,14 @@ class ClanInviteAcceptView(View):
         user_clan_mapping[interaction.user.id] = self.clan_owner_id
 
         guild = interaction.guild
-        clan_role = guild.get_role(clan["role_id"])
+        clan_role = guild.get_role(clan["role_id"]) if guild else None
         if clan_role:
             try: await interaction.user.add_roles(clan_role)
             except: pass
 
-        category = guild.get_channel(clan["category"])
-        text_ch = guild.get_channel(clan["text_ch"])
-        voice_ch = guild.get_channel(clan["voice_ch"])
+        category = guild.get_channel(clan["category"]) if guild else None
+        text_ch = guild.get_channel(clan["text_ch"]) if guild else None
+        voice_ch = guild.get_channel(clan["voice_ch"]) if guild else None
 
         if category: await category.set_permissions(interaction.user, read_messages=True, connect=True, view_channel=True)
         if text_ch: await text_ch.set_permissions(interaction.user, read_messages=True, send_messages=True)
@@ -795,23 +795,24 @@ class ClanInviteAcceptView(View):
             if len(new_nick) <= 32: await interaction.user.edit(nick=new_nick)
         except: pass
 
-        await send_custom_log(
-            guild=guild,
-            channel_id=CLAN_LOG_CHANNEL_ID,
-            emoji="👥",
-            title="Игрок вступил в клан",
-            description_lines=[
-                f"**Участник:** {interaction.user.name} ({interaction.user.mention})",
-                f"**Клан:** {clan['name']} (`[{clan['tag']}]`)"
-            ],
-            color=discord.Color.green()
-        )
+        if guild:
+            await send_custom_log(
+                guild=guild,
+                channel_id=CLAN_LOG_CHANNEL_ID,
+                emoji="👥",
+                title="Игрок вступил в клан",
+                description_lines=[
+                    f"**Участник:** {interaction.user.name} ({interaction.user.mention})",
+                    f"**Клан:** {clan['name']} (`[{clan['tag']}]`)"
+                ],
+                color=discord.Color.green()
+            )
 
         await interaction.response.edit_message(content=f"🎉 **{interaction.user.mention}**, вы успешно вступили в клан **{clan['name']}**!", view=None)
 
     @discord.ui.button(label="Отклонить", style=discord.ButtonStyle.danger, emoji="✖️")
     async def decline_invite(self, interaction: discord.Interaction, button: Button):
-        await interaction.response.edit_message(content=f"❌ **{interaction.user.mention}** отклонил(а) приглашение в клан.", view=None)
+        await interaction.response.edit_message(content=f"❌ Вы отклонили приглашение в клан.", view=None)
 
 
 class InviteUserSelect(View):
@@ -836,12 +837,23 @@ class InviteUserSelect(View):
         if target_member.id in user_clan_mapping:
             return await interaction.response.send_message("❌ Этот игрок уже состоит в другом клане!", ephemeral=True)
 
+        # Отправка ПРИВАТНОГО приглашения строго в Личные Сообщения (ЛС)
         invite_view = ClanInviteAcceptView(self.clan_owner_id, target_member.id)
-        await interaction.channel.send(
-            content=f"✉️ {target_member.mention}, вас приглашают в клан **{clan['name']}** (`[{clan['tag']}]`)! Нажмите кнопку ниже, чтобы принять решение:",
-            view=invite_view
-        )
-        await interaction.response.send_message(f"✅ Приглашение отправлено пользователю {target_member.mention}!", ephemeral=True)
+        try:
+            await target_member.send(
+                content=(
+                    f"✉️ **Приглашение в клан!**\n\n"
+                    f"Игрок **{interaction.user.name}** приглашает вас в клан **{clan['name']}** (`[{clan['tag']}]`) на сервере **{interaction.guild.name}**!\n"
+                    f"Нажмите кнопку ниже, чтобы принять решение:"
+                ),
+                view=invite_view
+            )
+            await interaction.response.send_message(f"✅ Приглашение отправлено пользователю {target_member.mention} в личные сообщения!", ephemeral=True)
+        except discord.Forbidden:
+            await interaction.response.send_message(
+                f"⚠️ Не удалось отправить сообщение {target_member.mention}. У пользователя закрыты личные сообщения!", 
+                ephemeral=True
+            )
 
 
 class KickUserSelect(View):
