@@ -747,17 +747,18 @@ class MediaMainView(View):
 
 
 # --------------------------------------------------
-# CLAN SYSTEM (PRIVATE DM INVITES & LEAVE BUTTON)
+# CLAN SYSTEM (FIXED DM ROLES & TAGS)
 # --------------------------------------------------
 class ClanInviteAcceptView(View):
-    def __init__(self, clan_owner_id: int, target_user_id: int):
+    def __init__(self, clan_owner_id: int, target_user_id: int, guild_id: int):
         super().__init__(timeout=120)
         self.clan_owner_id = clan_owner_id
         self.target_user_id = target_user_id
+        self.guild_id = guild_id
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id != self.target_user_id:
-            await interaction.response.send_message("❌ Это приглашение предназначено не для вас!", ephemeral=True)
+            await interaction.response.send_message("❌ Бұл шақыру сізге арналмаған!", ephemeral=True)
             return False
         return True
 
@@ -765,44 +766,55 @@ class ClanInviteAcceptView(View):
     async def accept_invite(self, interaction: discord.Interaction, button: Button):
         clan = clans_db.get(self.clan_owner_id)
         if not clan:
-            return await interaction.response.send_message("❌ Клан не найден или был удален.", ephemeral=True)
+            return await interaction.response.send_message("❌ Клан табылмады или өшірілген.", ephemeral=True)
 
         if len(clan["members"]) >= 10:
-            return await interaction.response.send_message("❌ В клане уже максимальное количество участников (10/10)!", ephemeral=True)
+            return await interaction.response.send_message("❌ Клан ішінде максималды қатысушы саны толды (10/10)!", ephemeral=True)
 
         if interaction.user.id in user_clan_mapping:
-            return await interaction.response.send_message("❌ Вы уже состоите в клане!", ephemeral=True)
+            return await interaction.response.send_message("❌ Сіз қазірдің өзінде кландасыз!", ephemeral=True)
 
         clan["members"].append(interaction.user.id)
         user_clan_mapping[interaction.user.id] = self.clan_owner_id
 
-        guild = interaction.guild
-        clan_role = guild.get_role(clan["role_id"]) if guild else None
-        if clan_role:
-            try: await interaction.user.add_roles(clan_role)
-            except: pass
+        # Серверді ID арқылы іздеп табу (ЛС-те болса да жұмыс істейді)
+        guild = interaction.client.get_guild(self.guild_id)
+        member = guild.get_member(interaction.user.id) if guild else None
 
-        category = guild.get_channel(clan["category"]) if guild else None
-        text_ch = guild.get_channel(clan["text_ch"]) if guild else None
-        voice_ch = guild.get_channel(clan["voice_ch"]) if guild else None
+        if guild and member:
+            # 1. Роль беру
+            clan_role = guild.get_role(clan["role_id"])
+            if clan_role:
+                try: 
+                    await member.add_roles(clan_role, reason="Вступление в клан")
+                except Exception as e:
+                    print(f"Ошибка выдачи роли: {e}")
 
-        if category: await category.set_permissions(interaction.user, read_messages=True, connect=True, view_channel=True)
-        if text_ch: await text_ch.set_permissions(interaction.user, read_messages=True, send_messages=True)
-        if voice_ch: await voice_ch.set_permissions(interaction.user, connect=True, speak=True)
+            # 2. Чат және Войс каналдарға рұқсат беру
+            category = guild.get_channel(clan["category"])
+            text_ch = guild.get_channel(clan["text_ch"])
+            voice_ch = guild.get_channel(clan["voice_ch"])
 
-        try:
-            new_nick = f"[{clan['tag']}] {interaction.user.display_name}"
-            if len(new_nick) <= 32: await interaction.user.edit(nick=new_nick)
-        except: pass
+            if category: await category.set_permissions(member, read_messages=True, connect=True, view_channel=True)
+            if text_ch: await text_ch.set_permissions(member, read_messages=True, send_messages=True)
+            if voice_ch: await voice_ch.set_permissions(member, connect=True, speak=True)
 
-        if guild:
+            # 3. Никнеймге тег қосу [TAG] Name
+            try:
+                new_nick = f"[{clan['tag']}] {member.display_name}"
+                if len(new_nick) <= 32:
+                    await member.edit(nick=new_nick)
+            except Exception as e:
+                print(f"Ошибка изменения ника: {e}")
+
+            # 4. Лог жіберу
             await send_custom_log(
                 guild=guild,
                 channel_id=CLAN_LOG_CHANNEL_ID,
                 emoji="👥",
                 title="Игрок вступил в клан",
                 description_lines=[
-                    f"**Участник:** {interaction.user.name} ({interaction.user.mention})",
+                    f"**Участник:** {member.name} ({member.mention})",
                     f"**Клан:** {clan['name']} (`[{clan['tag']}]`)"
                 ],
                 color=discord.Color.green()
@@ -837,8 +849,8 @@ class InviteUserSelect(View):
         if target_member.id in user_clan_mapping:
             return await interaction.response.send_message("❌ Этот игрок уже состоит в другом клане!", ephemeral=True)
 
-        # Отправка ПРИВАТНОГО приглашения строго в Личные Сообщения (ЛС)
-        invite_view = ClanInviteAcceptView(self.clan_owner_id, target_member.id)
+        # guild_id параметрін ClanInviteAcceptView-ке жібереміз
+        invite_view = ClanInviteAcceptView(self.clan_owner_id, target_member.id, interaction.guild.id)
         try:
             await target_member.send(
                 content=(
