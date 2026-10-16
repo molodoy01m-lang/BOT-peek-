@@ -497,75 +497,39 @@ class VoiceControlPanel(View):
             return False, "❌ Вы не являетесь владельцем этого приватного канала!"
         return True, voice_channel
 
-    @discord.ui.button(emoji="➕", style=discord.ButtonStyle.secondary, custom_id="vc_add_slot", row=0)
-    async def add_slot(self, interaction: discord.Interaction, button: Button):
+    @discord.ui.button(emoji=":83570screensharevolumemax:", style=discord.ButtonStyle.secondary, custom_id="vc_open", row=0)
+    async def open_channel(self, interaction: discord.Interaction, button: Button):
         is_ok, result = self.check_owner(interaction)
         if not is_ok: return await interaction.response.send_message(result, ephemeral=True)
-        new_limit = min((result.user_limit or 0) + 1, 99)
-        await result.edit(user_limit=new_limit)
-        await interaction.response.send_message(f"➕ Слот увеличен до **{new_limit}**", ephemeral=True)
+        await result.set_permissions(interaction.guild.default_role, connect=True)
+        await interaction.response.send_message(":83570screensharevolumemax: Канал открыт для всех.", ephemeral=True)
 
-    @discord.ui.button(emoji="➖", style=discord.ButtonStyle.secondary, custom_id="vc_remove_slot", row=0)
-    async def remove_slot(self, interaction: discord.Interaction, button: Button):
-        is_ok, result = self.check_owner(interaction)
-        if not is_ok: return await interaction.response.send_message(result, ephemeral=True)
-        new_limit = max((result.user_limit or len(result.members)) - 1, 1)
-        await result.edit(user_limit=new_limit)
-        await interaction.response.send_message(f"➖ Слот уменьшен до **{new_limit}**", ephemeral=True)
-
-    @discord.ui.button(emoji="👤", style=discord.ButtonStyle.secondary, custom_id="vc_add_user", row=0)
+    @discord.ui.button(emoji=":53540voiceinvite:", style=discord.ButtonStyle.secondary, custom_id="vc_add_user", row=0)
     async def add_user(self, interaction: discord.Interaction, button: Button):
         is_ok, _ = self.check_owner(interaction)
         if not is_ok: return await interaction.response.send_message(_, ephemeral=True)
         await interaction.response.send_message("Выберите пользователя:", view=UserActionView("add"), ephemeral=True)
 
-    @discord.ui.button(emoji="🔓", style=discord.ButtonStyle.secondary, custom_id="vc_open", row=0)
-    async def open_channel(self, interaction: discord.Interaction, button: Button):
-        is_ok, result = self.check_owner(interaction)
-        if not is_ok: return await interaction.response.send_message(result, ephemeral=True)
-        await result.set_permissions(interaction.guild.default_role, connect=True)
-        await interaction.response.send_message("🔓 Канал открыт для всех.", ephemeral=True)
-
-    @discord.ui.button(emoji="🔒", style=discord.ButtonStyle.secondary, custom_id="vc_close", row=0)
-    async def close_channel(self, interaction: discord.Interaction, button: Button):
-        is_ok, result = self.check_owner(interaction)
-        if not is_ok: return await interaction.response.send_message(result, ephemeral=True)
-        await result.set_permissions(interaction.guild.default_role, connect=False)
-        await interaction.response.send_message("🔒 Канал закрыт от посторонних.", ephemeral=True)
-
-    @discord.ui.button(emoji="👥", style=discord.ButtonStyle.secondary, custom_id="vc_block_user", row=1)
-    async def block_user(self, interaction: discord.Interaction, button: Button):
-        is_ok, _ = self.check_owner(interaction)
-        if not is_ok: return await interaction.response.send_message(_, ephemeral=True)
-        await interaction.response.send_message("Выберите пользователя для блокировки:", view=UserActionView("block"), ephemeral=True)
-
-    @discord.ui.button(emoji="👑", style=discord.ButtonStyle.secondary, custom_id="vc_transfer", row=1)
-    async def transfer_owner(self, interaction: discord.Interaction, button: Button):
-        is_ok, _ = self.check_owner(interaction)
-        if not is_ok: return await interaction.response.send_message(_, ephemeral=True)
-        await interaction.response.send_message("Выберите нового владельца:", view=UserActionView("transfer"), ephemeral=True)
-
-    @discord.ui.button(emoji="🙈", style=discord.ButtonStyle.secondary, custom_id="vc_hide", row=1)
-    async def hide_channel(self, interaction: discord.Interaction, button: Button):
-        is_ok, result = self.check_owner(interaction)
-        if not is_ok: return await interaction.response.send_message(result, ephemeral=True)
-        await result.set_permissions(interaction.guild.default_role, view_channel=False)
-        await interaction.response.send_message("🙈 Канал скрыт.", ephemeral=True)
-
-    @discord.ui.button(emoji="👁️", style=discord.ButtonStyle.secondary, custom_id="vc_show", row=1)
-    async def show_channel(self, interaction: discord.Interaction, button: Button):
-        is_ok, result = self.check_owner(interaction)
-        if not is_ok: return await interaction.response.send_message(result, ephemeral=True)
-        await result.set_permissions(interaction.guild.default_role, view_channel=True)
-        await interaction.response.send_message("👁️ Канал виден всем.", ephemeral=True)
-
-    @discord.ui.button(emoji="✏️", style=discord.ButtonStyle.secondary, custom_id="vc_rename", row=2)
+    @discord.ui.button(emoji="✏️", style=discord.ButtonStyle.secondary, custom_id="vc_rename", row=0)
     async def rename_channel(self, interaction: discord.Interaction, button: Button):
         is_ok, _ = self.check_owner(interaction)
         if not is_ok: return await interaction.response.send_message(_, ephemeral=True)
         await interaction.response.send_modal(RenameVoiceModal())
 
-    @discord.ui.button(emoji="🚫", style=discord.ButtonStyle.secondary, custom_id="vc_kick_user", row=2)
+    @discord.ui.button(emoji=":35297voicelocked:", style=discord.ButtonStyle.secondary, custom_id="vc_close", row=1)
+    async def close_channel(self, interaction: discord.Interaction, button: Button):
+        is_ok, result = self.check_owner(interaction)
+        if not is_ok: return await interaction.response.send_message(result, ephemeral=True)
+        await result.set_permissions(interaction.guild.default_role, connect=False)
+        await interaction.response.send_message(":35297voicelocked: Канал закрыт от посторонних.", ephemeral=True)
+
+    @discord.ui.button(emoji=":807617yellowcrown:", style=discord.ButtonStyle.secondary, custom_id="vc_transfer", row=1)
+    async def transfer_owner(self, interaction: discord.Interaction, button: Button):
+        is_ok, _ = self.check_owner(interaction)
+        if not is_ok: return await interaction.response.send_message(_, ephemeral=True)
+        await interaction.response.send_message("Выберите нового владельца:", view=UserActionView("transfer"), ephemeral=True)
+
+    @discord.ui.button(emoji=":nosoundpls:", style=discord.ButtonStyle.secondary, custom_id="vc_kick_user", row=1)
     async def kick_user_btn(self, interaction: discord.Interaction, button: Button):
         is_ok, _ = self.check_owner(interaction)
         if not is_ok: return await interaction.response.send_message(_, ephemeral=True)
@@ -1618,17 +1582,12 @@ async def send_voice_panel(ctx):
     embed = discord.Embed(
         description=(
             "# **Управление приватной комнатой**\n\n"
-            "➕ • Добавить слот\n"
-            "👤 • Изменить слоты\n"
-            "🔓 • Открыть канал\n"
-            "👥 • Добавить пользователя\n"
-            "🙈 • Скрыть канал\n"
+            "<:83570screensharevolumemax:1503049767016595586> • Открыть канал\n"
+            "<:53540voiceinvite:1503049767016595586> • Добавить пользователя\n"
             "✏️ • Переименовать канал\n\n"
-            "➖ • Убрать слот\n"
-            "👑 • Передать канал\n"
-            "🔒 • Закрыть канал\n"
-            "🚫 • Выгнать пользователя\n"
-            "👁️ • Показать канал\n\n"
+            "<:807617yellowcrown:1503049767016595586> • Передать канал\n"
+            "<:35297voicelocked:1503049767016595586> • Закрыть канал\n"
+            "<:nosoundpls:1503049767016595586> • Выгнать пользователя\n\n"
             "*Кнопки активны в вашем войсе.*"
         ), 
         color=discord.Color.dark_grey()
@@ -1644,7 +1603,7 @@ async def send_girl_ticket(ctx):
         await ctx.send(file=file, embed=img_embed)
     text_embed = discord.Embed(
         description=(
-            "<:18690member:1503151722611347586> **Роль Девушка**\n\n"
+            "<:793670heart:1503151722611347586> **Роль Девушка**\n\n"
             "<a:a_pink_dot:1503133833548271646> Нажмите кнопку ниже для создания тикета."
         ), 
         color=discord.Color.from_rgb(255, 105, 180)
